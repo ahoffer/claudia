@@ -1,7 +1,7 @@
 /**
  * Config Store - Manages application configuration (MCP servers, CLI switches)
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { BackendType } from './backends/types.js';
@@ -210,7 +210,9 @@ export class ConfigStore {
 
     private saveConfig(): void {
         try {
-            writeFileSync(this.configFile, JSON.stringify(this.config, null, 2), 'utf-8');
+            const tmpPath = this.configFile + '.tmp';
+            writeFileSync(tmpPath, JSON.stringify(this.config, null, 2), { encoding: 'utf-8', mode: 0o600 });
+            renameSync(tmpPath, this.configFile);
             console.log('[ConfigStore] Config saved to', this.configFile);
         } catch (error) {
             console.error('[ConfigStore] Error saving config:', error);

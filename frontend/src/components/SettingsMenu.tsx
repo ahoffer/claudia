@@ -1224,8 +1224,8 @@ export function SettingsMenu({ isOpen, onClose, initialPanel }: SettingsMenuProp
     if (!isOpen) return null;
 
     return (
-        <div className="settings-menu-overlay" onClick={onClose}>
-            <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
+        <div className="settings-menu-overlay" onClick={onClose} role="presentation">
+            <div className="settings-menu" role="dialog" aria-modal="true" aria-label="Settings" onClick={(e) => e.stopPropagation()}>
                 <div className="settings-menu-header">
                     <div className="settings-menu-title">
                         <Settings size={20} />

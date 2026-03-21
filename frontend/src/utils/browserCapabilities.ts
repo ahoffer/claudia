@@ -2,6 +2,8 @@
  * Browser capability detection and feature checks
  */
 
+import { NOTIFICATION_TASK_CLICK } from '../constants/events';
+
 /**
  * Check if running in Electron environment
  */
@@ -150,7 +152,7 @@ export function sendBrowserNotification(
             window.focus();
             // Dispatch custom event so the app can handle task focusing
             if (options?.data?.taskId) {
-                window.dispatchEvent(new CustomEvent('notification:taskClick', {
+                window.dispatchEvent(new CustomEvent(NOTIFICATION_TASK_CLICK, {
                     detail: { taskId: options.data.taskId }
                 }));
             }

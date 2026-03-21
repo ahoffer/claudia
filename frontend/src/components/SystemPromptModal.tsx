@@ -35,8 +35,8 @@ export function SystemPromptModal({
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose} onKeyDown={handleKeyDown}>
-            <div className="modal-content system-prompt-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={onClose} onKeyDown={handleKeyDown} role="presentation">
+            <div className="modal-content system-prompt-modal" role="dialog" aria-modal="true" aria-label="System Prompt" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <FileText size={20} />
                     <h2>System Prompt</h2>

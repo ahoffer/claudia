@@ -282,11 +282,34 @@ export async function createApp(basePath?: string) {
     // Use noServer mode so we can manually route WebSocket upgrade requests.
     // This is critical for tunnel access: Vite HMR WebSocket connections need
     // to be proxied to the Vite dev server, not handled by our app's WSS.
-    const wss = new WebSocketServer({ noServer: true });
+    const wss = new WebSocketServer({ noServer: true, maxPayload: 10 * 1024 * 1024 });
 
     // Middleware
-    app.use(cors());
-    app.use(express.json({ limit: '50mb' })); // Increased limit for large AI requests
+    const allowedOrigins = process.env.CORS_ORIGINS
+        ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+        : [
+            'http://localhost:4000',
+            'http://localhost:4001',
+            'http://127.0.0.1:4000',
+            'http://127.0.0.1:4001',
+        ];
+    app.use(cors({
+        origin: (origin, callback) => {
+            // Allow requests with no origin (curl, server-to-server, same-origin)
+            if (!origin) return callback(null, true);
+            // Allow ngrok/localtunnel origins (tunnel access uses token auth)
+            try {
+                if (/\.(ngrok-free\.app|ngrok\.io|loca\.lt)$/.test(new URL(origin).hostname)) {
+                    return callback(null, true);
+                }
+            } catch {
+                // Malformed origin, fall through to rejection
+            }
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+            callback(new Error(`CORS: origin ${origin} not allowed`));
+        },
+    }));
+    app.use(express.json({ limit: '10mb' }));
 
     // TunnelManager for mobile remote access (ngrok-based, created early for middleware use)
     const tunnelManager = new TunnelManager(PORTS.BACKEND);
@@ -1935,7 +1958,16 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 
     // REST API routes
     app.get('/api/health', (_req, res) => {
-        res.json({ status: 'ok' });
+        const mem = process.memoryUsage();
+        res.json({
+            status: 'ok',
+            uptime: Math.floor(process.uptime()),
+            taskCount: taskSpawner.getTaskCount(),
+            memoryMB: {
+                rss: Math.round(mem.rss / 1024 / 1024),
+                heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+            },
+        });
     });
 
     // Native folder picker dialog

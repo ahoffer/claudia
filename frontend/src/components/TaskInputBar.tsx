@@ -4,6 +4,7 @@ import { Task } from '@claudia/shared';
 import { useTaskStore } from '../stores/taskStore';
 import { getApiBaseUrl } from '../config/api-config';
 import { ScheduledTasksModal } from './ScheduledTasksModal';
+import { TERMINAL_SCROLL_TO_BOTTOM, TASK_INPUT_FOCUS } from '../constants/events';
 import './TaskInputBar.css';
 
 interface UploadedImage {
@@ -66,9 +67,9 @@ export function TaskInputBar({ task, wsRef }: TaskInputBarProps) {
             }
         };
 
-        window.addEventListener('taskInput:focus', handleFocusRequest as EventListener);
+        window.addEventListener(TASK_INPUT_FOCUS, handleFocusRequest as EventListener);
         return () => {
-            window.removeEventListener('taskInput:focus', handleFocusRequest as EventListener);
+            window.removeEventListener(TASK_INPUT_FOCUS, handleFocusRequest as EventListener);
         };
     }, [task.id]);
 
@@ -250,7 +251,7 @@ export function TaskInputBar({ task, wsRef }: TaskInputBarProps) {
         }));
 
         // Scroll terminal to bottom so user sees latest output
-        window.dispatchEvent(new CustomEvent('terminal:scrollToBottom', {
+        window.dispatchEvent(new CustomEvent(TERMINAL_SCROLL_TO_BOTTOM, {
             detail: { taskId: task.id }
         }));
 

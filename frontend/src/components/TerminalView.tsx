@@ -5,6 +5,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Task, Workspace } from '@claudia/shared';
 import { Copy, Check, Play, BookOpen, ArrowDown } from 'lucide-react';
 import { TaskInputBar } from './TaskInputBar';
+import { TERMINAL_SCROLL_TO_BOTTOM } from '../constants/events';
 import '@xterm/xterm/css/xterm.css';
 import './TerminalView.css';
 
@@ -73,9 +74,9 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
             }
         };
 
-        window.addEventListener('terminal:scrollToBottom', handleScrollToBottom as EventListener);
+        window.addEventListener(TERMINAL_SCROLL_TO_BOTTOM, handleScrollToBottom as EventListener);
         return () => {
-            window.removeEventListener('terminal:scrollToBottom', handleScrollToBottom as EventListener);
+            window.removeEventListener(TERMINAL_SCROLL_TO_BOTTOM, handleScrollToBottom as EventListener);
         };
     }, [task.id]);
 

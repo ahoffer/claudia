@@ -145,8 +145,8 @@ export function ScheduledTasksModal({ taskId, taskName, initialPrompt, onClose }
     };
 
     return (
-        <div className="modal-overlay scheduled-tasks-overlay" onClick={onClose}>
-            <div className="modal-content scheduled-tasks-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay scheduled-tasks-overlay" onClick={onClose} role="presentation">
+            <div className="modal-content scheduled-tasks-modal" role="dialog" aria-modal="true" aria-label="Scheduled Tasks" onClick={e => e.stopPropagation()}>
                 <div className="scheduled-tasks-header">
                     <div className="scheduled-tasks-title">
                         <Clock size={18} />

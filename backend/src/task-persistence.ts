@@ -5,7 +5,7 @@
  * Manages task history files and archived task storage.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, statSync, openSync, readSync, closeSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, statSync, openSync, readSync, closeSync, renameSync } from 'fs';
 import { dirname, join } from 'path';
 import { TaskState, TaskGitState } from '@claudia/shared';
 
@@ -202,7 +202,8 @@ export class TaskPersistenceManager {
     }
 
     /**
-     * Save tasks to disk
+     * Save tasks to disk using atomic write (temp file + rename)
+     * to prevent corruption if the process crashes mid-write.
      */
     saveTasks(
         tasks: PersistedTask[],
@@ -219,7 +220,9 @@ export class TaskPersistenceManager {
                 mkdirSync(dir, { recursive: true });
             }
 
-            writeFileSync(this.persistencePath, JSON.stringify(persistence, null, 2));
+            const tmpPath = this.persistencePath + '.tmp';
+            writeFileSync(tmpPath, JSON.stringify(persistence, null, 2));
+            renameSync(tmpPath, this.persistencePath);
             console.log(`[TaskPersistence] Saved ${tasks.length} tasks, ${archivedTasks.length} archived (metadata only)`);
         } catch (error) {
             console.error('[TaskPersistence] Failed to save tasks:', error);

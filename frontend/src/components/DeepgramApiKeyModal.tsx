@@ -28,8 +28,8 @@ export function DeepgramApiKeyModal({ isOpen, onClose }: DeepgramApiKeyModalProp
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content deepgram-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={onClose} role="presentation">
+            <div className="modal-content deepgram-modal" role="dialog" aria-modal="true" aria-label="Deepgram API Key" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">
                         <Key size={20} />

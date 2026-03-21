@@ -6,6 +6,22 @@ import { existsSync, statSync } from 'fs';
 import { resolve, normalize, isAbsolute } from 'path';
 
 /**
+ * Environment variable names that must not be overridden via MCP server config.
+ * These could alter process loading, search paths, or escalate privileges.
+ */
+export const BLOCKED_ENV_VAR_NAMES = new Set([
+    'PATH',
+    'LD_PRELOAD',
+    'LD_LIBRARY_PATH',
+    'DYLD_INSERT_LIBRARIES',
+    'DYLD_LIBRARY_PATH',
+    'NODE_OPTIONS',
+    'ELECTRON_RUN_AS_NODE',
+    'LD_AUDIT',
+    'LD_PROFILE',
+]);
+
+/**
  * Result of a validation operation
  */
 export interface ValidationResult<T> {
@@ -163,6 +179,21 @@ export function validateConfigUpdate(body: unknown): ValidationResult<ConfigUpda
                 for (const [key, value] of Object.entries(server.headers)) {
                     if (typeof value !== 'string') {
                         return { valid: false, error: `mcpServers[${i}].headers.${key} must be a string` };
+                    }
+                }
+            }
+
+            // Validate env vars (optional object with string values, block dangerous names)
+            if (server.env !== undefined) {
+                if (typeof server.env !== 'object' || server.env === null || Array.isArray(server.env)) {
+                    return { valid: false, error: `mcpServers[${i}].env must be an object` };
+                }
+                for (const [key, value] of Object.entries(server.env)) {
+                    if (typeof value !== 'string') {
+                        return { valid: false, error: `mcpServers[${i}].env.${key} must be a string` };
+                    }
+                    if (BLOCKED_ENV_VAR_NAMES.has(key.toUpperCase())) {
+                        return { valid: false, error: `mcpServers[${i}].env.${key} is a blocked environment variable` };
                     }
                 }
             }

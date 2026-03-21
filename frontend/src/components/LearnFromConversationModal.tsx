@@ -148,8 +148,8 @@ export function LearnFromConversationModal({
     const hasChanges = selectedSuggestions.size > 0;
 
     return (
-        <div className="learn-modal-overlay" onClick={onClose} onKeyDown={handleKeyDown}>
-            <div className="learn-modal" onClick={e => e.stopPropagation()}>
+        <div className="learn-modal-overlay" onClick={onClose} onKeyDown={handleKeyDown} role="presentation">
+            <div className="learn-modal" role="dialog" aria-modal="true" aria-label="Learn from Conversation" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <Brain size={20} />
                     <h2>Learn from Conversation</h2>

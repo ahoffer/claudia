@@ -15,6 +15,7 @@ import { useTaskStore } from './stores/taskStore';
 import { Terminal, Settings, MessageCircle, X, RefreshCw, RotateCcw, WifiOff, Activity, AlertTriangle, Smartphone, ArrowLeft, Minimize2, Mic, Bell, BellOff } from 'lucide-react';
 import { getApiBaseUrl } from './config/api-config';
 import { isSoundEnabled, setSoundEnabled } from './utils/browserCapabilities';
+import { TERMINAL_SCROLL_TO_BOTTOM, TASK_INPUT_FOCUS } from './constants/events';
 
 // Hook: returns true when viewport is ≤768px wide
 function useIsMobile(breakpoint = 768) {
@@ -260,7 +261,7 @@ function App() {
         const delays = [100, 300, 600];
         delays.forEach(delay => {
             setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('terminal:scrollToBottom', {
+                window.dispatchEvent(new CustomEvent(TERMINAL_SCROLL_TO_BOTTOM, {
                     detail: { taskId }
                 }));
             }, delay);
@@ -268,7 +269,7 @@ function App() {
 
         // Focus the task input bar after a short delay to allow the component to mount
         setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('taskInput:focus', {
+            window.dispatchEvent(new CustomEvent(TASK_INPUT_FOCUS, {
                 detail: { taskId }
             }));
         }, 150);

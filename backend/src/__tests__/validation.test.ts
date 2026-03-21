@@ -216,6 +216,43 @@ describe('validateConfigUpdate', () => {
         }).valid).toBe(false);
     });
 
+    it('should validate MCP server env vars', () => {
+        // Valid env vars
+        expect(validateConfigUpdate({
+            mcpServers: [{ name: 'test', command: 'cmd', enabled: true, env: { API_KEY: 'secret123' } }]
+        }).valid).toBe(true);
+
+        // Invalid env - not an object
+        expect(validateConfigUpdate({
+            mcpServers: [{ name: 'test', command: 'cmd', enabled: true, env: 'invalid' }]
+        }).valid).toBe(false);
+
+        // Invalid env - array
+        expect(validateConfigUpdate({
+            mcpServers: [{ name: 'test', command: 'cmd', enabled: true, env: ['invalid'] }]
+        }).valid).toBe(false);
+
+        // Invalid env - non-string value
+        expect(validateConfigUpdate({
+            mcpServers: [{ name: 'test', command: 'cmd', enabled: true, env: { KEY: 123 } }]
+        }).valid).toBe(false);
+
+        // Blocked env var names
+        const blockedNames = ['PATH', 'LD_PRELOAD', 'LD_LIBRARY_PATH', 'DYLD_INSERT_LIBRARIES', 'NODE_OPTIONS'];
+        for (const name of blockedNames) {
+            const result = validateConfigUpdate({
+                mcpServers: [{ name: 'test', command: 'cmd', enabled: true, env: { [name]: 'value' } }]
+            });
+            expect(result.valid).toBe(false);
+            expect(result.error).toContain('blocked environment variable');
+        }
+
+        // Blocked names are case-insensitive
+        expect(validateConfigUpdate({
+            mcpServers: [{ name: 'test', command: 'cmd', enabled: true, env: { path: 'value' } }]
+        }).valid).toBe(false);
+    });
+
     it('should validate multiple config fields at once', () => {
         const result = validateConfigUpdate({
             rules: 'test rules',

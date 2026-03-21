@@ -35,9 +35,12 @@ export function ConfirmModal({
     }, [handleKeyDown]);
 
     return (
-        <div className="modal-overlay confirm-modal-overlay" onClick={onCancel}>
+        <div className="modal-overlay confirm-modal-overlay" onClick={onCancel} role="presentation">
             <div
                 className={`modal-content confirm-modal confirm-modal--${variant}`}
+                role="dialog"
+                aria-modal="true"
+                aria-label={title}
                 onClick={e => e.stopPropagation()}
             >
                 <div className="confirm-modal-header">

@@ -53,14 +53,14 @@ describe('BufferRingBuffer', () => {
             expect(buffer.length()).toBe(2);
         });
 
-        it('should handle single large chunk that exceeds max', () => {
-            const largeChunk = Buffer.from('x'.repeat(150)); // Exceeds max of 100
+        it('should truncate single large chunk that exceeds max (keeps tail)', () => {
+            const largeChunk = Buffer.from('x'.repeat(50) + 'y'.repeat(100)); // 150 bytes, exceeds max of 100
             buffer.push(largeChunk);
 
-            // Should still keep the chunk even if it exceeds max
-            // (only removes old chunks, won't truncate current)
             expect(buffer.length()).toBe(1);
-            expect(buffer.size()).toBe(150);
+            expect(buffer.size()).toBe(100);
+            // Should keep the tail (last 100 bytes = all y's)
+            expect(buffer.toString()).toBe('y'.repeat(100));
         });
     });
 

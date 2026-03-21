@@ -3,6 +3,7 @@ import { useTaskStore } from '../stores/taskStore';
 import { WSMessage, WSErrorPayload, Task, Workspace, TaskSummary, SuggestedAction, ChatMessage, WaitingInputType } from '@claudia/shared';
 import { getWebSocketUrl, getApiBaseUrl, isTunnelAccess } from '../config/api-config';
 import { playTaskCompletionSound, sendTaskCompletionNotification, sendTaskWaitingInputNotification } from '../utils/browserCapabilities';
+import { TERMINAL_SCROLL_TO_BOTTOM, TASK_INPUT_FOCUS, NOTIFICATION_TASK_CLICK } from '../constants/events';
 
 const WS_URL = getWebSocketUrl();
 const API_URL = getApiBaseUrl();
@@ -301,14 +302,14 @@ export function useWebSocket() {
 
                             // Dispatch scroll-to-bottom event like handleSelectTask does
                             setTimeout(() => {
-                                window.dispatchEvent(new CustomEvent('terminal:scrollToBottom', {
+                                window.dispatchEvent(new CustomEvent(TERMINAL_SCROLL_TO_BOTTOM, {
                                     detail: { taskId: payload.taskId }
                                 }));
                             }, 100);
 
                             // Focus the task input bar after a short delay to allow the component to mount
                             setTimeout(() => {
-                                window.dispatchEvent(new CustomEvent('taskInput:focus', {
+                                window.dispatchEvent(new CustomEvent(TASK_INPUT_FOCUS, {
                                     detail: { taskId: payload.taskId }
                                 }));
                             }, 150);
@@ -367,7 +368,7 @@ export function useWebSocket() {
                                     const delays = [100, 300, 600];
                                     delays.forEach(delay => {
                                         setTimeout(() => {
-                                            window.dispatchEvent(new CustomEvent('terminal:scrollToBottom', {
+                                            window.dispatchEvent(new CustomEvent(TERMINAL_SCROLL_TO_BOTTOM, {
                                                 detail: { taskId: payload.task!.id }
                                             }));
                                         }, delay);
@@ -375,7 +376,7 @@ export function useWebSocket() {
 
                                     // Focus the task input bar after a short delay to allow the component to mount
                                     setTimeout(() => {
-                                        window.dispatchEvent(new CustomEvent('taskInput:focus', {
+                                        window.dispatchEvent(new CustomEvent(TASK_INPUT_FOCUS, {
                                             detail: { taskId: payload.task!.id }
                                         }));
                                     }, 150);
@@ -542,13 +543,13 @@ export function useWebSocket() {
                 selectTask(taskId);
                 sendMessage('task:select', { taskId });
                 setTimeout(() => {
-                    window.dispatchEvent(new CustomEvent('terminal:scrollToBottom', {
+                    window.dispatchEvent(new CustomEvent(TERMINAL_SCROLL_TO_BOTTOM, {
                         detail: { taskId }
                     }));
                 }, 100);
             }
         };
-        window.addEventListener('notification:taskClick', handleNotificationClick);
+        window.addEventListener(NOTIFICATION_TASK_CLICK, handleNotificationClick);
 
         return () => {
             console.log('[WebSocket] 🧹 Cleanup - closing connection');
@@ -557,7 +558,7 @@ export function useWebSocket() {
             }
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
-            window.removeEventListener('notification:taskClick', handleNotificationClick);
+            window.removeEventListener(NOTIFICATION_TASK_CLICK, handleNotificationClick);
             wsRef.current?.close();
         };
     }, []);

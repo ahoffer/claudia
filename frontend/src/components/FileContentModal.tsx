@@ -150,8 +150,8 @@ export function FileContentModal({ workspacePath, filePath, isDiff = false, stag
     // escapes the FileExplorer's stacking context (z-index: 5) and
     // floats above everything including the WorkspacePanel.
     return createPortal(
-        <div className="file-content-modal-backdrop" onClick={handleBackdropClick}>
-            <div className="file-content-modal">
+        <div className="file-content-modal-backdrop" onClick={handleBackdropClick} role="presentation">
+            <div className="file-content-modal" role="dialog" aria-modal="true" aria-label="File Content">
                 {/* Header */}
                 <div className="file-content-modal-header">
                     <div className="file-content-modal-title">

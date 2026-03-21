@@ -1,5 +1,6 @@
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationProvider } from './components/NotificationContainer';
 import { setupAudioUnlock } from './utils/browserCapabilities';
 import './styles/index.css';
@@ -8,7 +9,9 @@ import './styles/index.css';
 setupAudioUnlock();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-    <NotificationProvider>
-        <App />
-    </NotificationProvider>
+    <ErrorBoundary>
+        <NotificationProvider>
+            <App />
+        </NotificationProvider>
+    </ErrorBoundary>
 );

@@ -15,7 +15,7 @@
 
 import { EventEmitter } from 'events';
 import { ScheduledTask } from '@claudia/shared';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createLogger } from './logger.js';
@@ -588,7 +588,9 @@ export class CronScheduler extends EventEmitter {
     private save(): void {
         try {
             const data = Array.from(this.scheduledTasks.values());
-            writeFileSync(PERSISTENCE_PATH, JSON.stringify(data, null, 2), 'utf8');
+            const tmpPath = PERSISTENCE_PATH + '.tmp';
+            writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf8');
+            renameSync(tmpPath, PERSISTENCE_PATH);
             logger.debug('Saved scheduled tasks', { count: data.length });
         } catch (error) {
             logger.error('Failed to save scheduled tasks', { error });

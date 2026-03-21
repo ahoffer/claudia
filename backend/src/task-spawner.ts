@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import { Task, TaskState, TaskGitState, WaitingInputType, BackendType, PORTS } from '@claudia/shared';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, appendFileSync, statSync, openSync, readSync, closeSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, appendFileSync, statSync, openSync, readSync, closeSync, renameSync } from 'fs';
 import { tmpdir } from 'os';
 import { execSync } from 'child_process';
 import { ConfigStore, ClaudeCodeSwitches } from './config-store.js';
@@ -977,7 +977,9 @@ export class TaskSpawner extends EventEmitter {
                 mkdirSync(dir, { recursive: true });
             }
 
-            writeFileSync(this.persistencePath, JSON.stringify(persistence, null, 2));
+            const tmpPath = this.persistencePath + '.tmp';
+            writeFileSync(tmpPath, JSON.stringify(persistence, null, 2));
+            renameSync(tmpPath, this.persistencePath);
             console.log(`[TaskSpawner] Saved ${tasksToSave.length} tasks, ${archivedTasksToSave.length} archived (metadata only)`);
         } catch (error) {
             console.error('[TaskSpawner] Failed to save tasks:', error);
@@ -2572,11 +2574,7 @@ You are running as an agent inside Claudia, a multi-agent orchestrator. You have
                 // Delete from map FIRST to prevent onExit handler from emitting state changes
                 this.tasks.delete(taskId);
                 this.taskBackends.delete(taskId);
-                try {
-                    task.process.kill();
-                } catch (_e) {
-                    // Process might already be dead
-                }
+                this.killProcessWithVerification(task.process, taskId);
                 destroyed = true;
                 source = 'live';
             }
@@ -2673,11 +2671,7 @@ You are running as an agent inside Claudia, a multi-agent orchestrator. You have
 
             // Delete from map FIRST to prevent onExit handler from emitting state changes
             this.tasks.delete(taskId);
-            try {
-                task.process.kill();
-            } catch (_e) {
-                // Process might already be dead
-            }
+            this.killProcessWithVerification(task.process, taskId);
             archived = true;
             wasLive = true;
         }
@@ -2860,6 +2854,10 @@ You are running as an agent inside Claudia, a multi-agent orchestrator. You have
             return true;
         }
         return false;
+    }
+
+    getTaskCount(): number {
+        return this.tasks.size + this.disconnectedTasks.size;
     }
 
     getAllTasks(): Task[] {
@@ -3097,13 +3095,57 @@ You are running as an agent inside Claudia, a multi-agent orchestrator. You have
         for (const task of this.tasks.values()) {
             // Clean up MCP temp files
             this.cleanupMcpTempFiles(task.id);
-            try {
-                task.process.kill();
-            } catch (_e) {
-                // Process might already be dead
-            }
+            this.killProcessWithVerification(task.process, task.id);
         }
         this.tasks.clear();
+    }
+
+    /**
+     * Kill a PTY process with verification. If the initial kill fails or the
+     * process is still alive after a short delay, escalate to SIGKILL.
+     */
+    private killProcessWithVerification(ptyProcess: IPty, taskId: string): void {
+        const pid = ptyProcess.pid;
+        try {
+            ptyProcess.kill();
+        } catch (e) {
+            logger.warn(`Initial kill failed for task, attempting SIGKILL`, { taskId, pid, error: e });
+            this.forceKillPid(pid, taskId);
+            return;
+        }
+
+        // Schedule a verification check: if the process is still alive after
+        // 2 seconds, force-kill it to prevent zombie processes.
+        if (pid) {
+            setTimeout(() => {
+                if (this.isProcessAlive(pid)) {
+                    logger.warn(`Process still alive after kill, sending SIGKILL`, { taskId, pid });
+                    this.forceKillPid(pid, taskId);
+                }
+            }, 2000);
+        }
+    }
+
+    /** Check if a process with the given PID is still running. */
+    private isProcessAlive(pid: number): boolean {
+        try {
+            // signal 0 tests whether the process exists without actually sending a signal
+            process.kill(pid, 0);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /** Send SIGKILL to a PID, ignoring errors if the process is already gone. */
+    private forceKillPid(pid: number | undefined, taskId: string): void {
+        if (!pid) return;
+        try {
+            process.kill(pid, 'SIGKILL');
+            logger.info(`Sent SIGKILL to process`, { taskId, pid });
+        } catch {
+            // Process already exited, which is fine
+        }
     }
 
     saveNow(): void {
@@ -3128,12 +3170,8 @@ You are running as an agent inside Claudia, a multi-agent orchestrator. You have
 
         console.log(`[TaskSpawner] Disconnecting task ${taskId} (simulating restart)`);
 
-        // Kill the process
-        try {
-            task.process.kill();
-        } catch (e) {
-            console.error(`[TaskSpawner] Failed to kill process for ${taskId}:`, e);
-        }
+        // Kill the process with verification to prevent zombies
+        this.killProcessWithVerification(task.process, taskId);
 
         // Create persisted task entry - preserve all metadata from the active task
         const persisted: PersistedTask = {
@@ -3172,9 +3210,7 @@ You are running as an agent inside Claudia, a multi-agent orchestrator. You have
 
         // 1. Kill all active tasks
         for (const task of this.tasks.values()) {
-            try {
-                task.process.kill();
-            } catch (e) { }
+            this.killProcessWithVerification(task.process, task.id);
         }
         this.tasks.clear();
 

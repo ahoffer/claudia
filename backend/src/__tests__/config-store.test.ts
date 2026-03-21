@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs';
+import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { ConfigStore, AppConfig, MCPServerConfig } from '../config-store.js';
@@ -261,6 +261,23 @@ describe('ConfigStore', () => {
             store.setUseLearnings(true);
             const newStore = new ConfigStore(testBaseDir);
             expect(newStore.getUseLearnings()).toBe(true);
+        });
+    });
+
+    describe('file security', () => {
+        it('should write config with restricted permissions (0o600)', () => {
+            store.updateConfig({ rules: 'test permissions' });
+            const configPath = join(testBaseDir, 'config.json');
+            const stats = statSync(configPath);
+            // Check owner-only read/write (mode & 0o777 should be 0o600)
+            const mode = stats.mode & 0o777;
+            expect(mode).toBe(0o600);
+        });
+
+        it('should not leave .tmp files after save', () => {
+            store.updateConfig({ rules: 'test atomic' });
+            const tmpPath = join(testBaseDir, 'config.json.tmp');
+            expect(existsSync(tmpPath)).toBe(false);
         });
     });
 

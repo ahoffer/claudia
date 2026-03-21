@@ -46,8 +46,8 @@ export function PathInputModal({ onSubmit, onCancel, recentWorkspaces = [], onRe
     };
 
     return (
-        <div className="modal-overlay" onClick={onCancel}>
-            <div className="modal-content path-input-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={onCancel} role="presentation">
+            <div className="modal-content path-input-modal" role="dialog" aria-modal="true" aria-label="Add Workspace" onClick={(e) => e.stopPropagation()}>
                 <h2>Add Workspace</h2>
 
                 {recentWorkspaces.length > 0 && (

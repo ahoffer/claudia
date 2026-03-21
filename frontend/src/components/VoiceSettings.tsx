@@ -51,8 +51,8 @@ export function VoiceSettings({ onClose }: VoiceSettingsProps) {
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content voice-settings-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={onClose} role="presentation">
+            <div className="modal-content voice-settings-modal" role="dialog" aria-modal="true" aria-label="Voice Settings" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2>
                         <Settings size={20} />

@@ -36,6 +36,13 @@ export class BufferRingBuffer {
                 this.totalSize -= removed.length;
             }
         }
+
+        // If a single chunk exceeds maxSize, truncate it (keep the tail)
+        if (this.chunks.length === 1 && this.totalSize > this.maxSize) {
+            const truncated = this.chunks[0].subarray(this.chunks[0].length - this.maxSize);
+            this.chunks[0] = truncated;
+            this.totalSize = truncated.length;
+        }
     }
 
     /**

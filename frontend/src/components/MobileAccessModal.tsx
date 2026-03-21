@@ -97,8 +97,8 @@ export function MobileAccessModal({ isOpen, onClose, error, tunnelLoading, onSto
         : '';
 
     return (
-        <div className="mobile-access-overlay" onClick={onClose}>
-            <div className="mobile-access-modal" onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
+        <div className="mobile-access-overlay" onClick={onClose} role="presentation">
+            <div className="mobile-access-modal" role="dialog" aria-modal="true" aria-label="Mobile Access" onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
                 <button className="modal-close" onClick={onClose}>
                     <X size={18} />
                 </button>
