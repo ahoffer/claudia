@@ -26,6 +26,25 @@ import { createLogger } from '../logger.js';
 const claudeExe = process.platform === 'win32' ? 'claude.exe' : 'claude';
 const logger = createLogger('[ClaudeCodeBackend]');
 
+/** Auto-trust: detect interactive prompts that block headless/remote usage */
+const AUTO_TRUST_PATTERNS = [
+    /Quick safety check/,
+    /Do you trust the files in this folder/,
+    /Yes, I trust this folder/,
+];
+
+const AUTO_BYPASS_PATTERNS = [
+    /Bypass Permissions mode/,
+    /WARNING.*[Bb]ypass/,
+];
+
+const AUTO_TRUST_DONE_PATTERNS = [
+    /Welcome back/,
+    /Claude Code v\d/,
+    /What can I help/,
+    /Tips for getting started/,
+];
+
 /**
  * Map legacy permission mode values to actual Claude Code CLI values.
  * Claude CLI --permission-mode accepts: acceptEdits, bypassPermissions, default, dontAsk, plan
@@ -107,6 +126,9 @@ interface InternalTask {
     shouldContinue?: boolean;
     continuationSent?: boolean;
     consecutiveOutputChanges?: number;
+    autoTrustHandled?: boolean;
+    autoBypassHandled?: boolean;
+    autoTrustPending?: boolean;
 }
 
 /**
@@ -645,6 +667,43 @@ export class ClaudeCodeBackend extends EventEmitter implements CodeBackend {
 
     private setupProcessHandlers(task: InternalTask): void {
         task.process.onData((rawData: string) => {
+            // Auto-trust: handle prompts that block headless/remote usage
+            const cleanForTrust = this.stripAnsi(rawData);
+
+            if (!task.autoTrustHandled && AUTO_TRUST_PATTERNS.some(p => p.test(cleanForTrust))) {
+                task.autoTrustPending = true;
+                setTimeout(() => {
+                    if (!task.autoTrustHandled) {
+                        // Move to option 1 (up arrow) then confirm (enter)
+                        task.process.write('\x1b[A');
+                        setTimeout(() => {
+                            task.process.write('\r');
+                            task.autoTrustHandled = true;
+                            task.autoTrustPending = false;
+                            logger.info('Auto-accepted trust prompt', { taskId: task.id });
+                        }, 200);
+                    }
+                }, 500);
+            }
+
+            if (!task.autoBypassHandled && AUTO_BYPASS_PATTERNS.some(p => p.test(cleanForTrust))) {
+                task.autoTrustPending = true;
+                setTimeout(() => {
+                    if (!task.autoBypassHandled) {
+                        task.process.write('\r');
+                        task.autoBypassHandled = true;
+                        task.autoTrustPending = false;
+                        logger.info('Auto-accepted bypass permissions warning', { taskId: task.id });
+                    }
+                }, 500);
+            }
+
+            if (AUTO_TRUST_DONE_PATTERNS.some(p => p.test(cleanForTrust))) {
+                task.autoTrustHandled = true;
+                task.autoBypassHandled = true;
+                task.autoTrustPending = false;
+            }
+
             // Filter out auth conflict warning that appears when multiple auth methods are set
             const data = this.filterAuthConflictWarning(rawData);
             if (!data) return; // Entire chunk was warning content
@@ -676,11 +735,11 @@ export class ClaudeCodeBackend extends EventEmitter implements CodeBackend {
             // Send initial prompt when Claude is ready
             // Check accumulated history, not just the current chunk, as output might be split
             const recentOutput = this.getRecentOutput(task, 5000);
-            if (!task.initialPromptSent && task.pendingPrompt) {
+            if (!task.initialPromptSent && task.pendingPrompt && !task.autoTrustPending) {
                 const isReady = this.isReadyForInitialInput(recentOutput);
                 logger.info('Checking ready state', { taskId: task.id, isReady, outputLen: recentOutput.length, outputTail: recentOutput.slice(-300) });
             }
-            if (!task.initialPromptSent && task.pendingPrompt && this.isReadyForInitialInput(recentOutput)) {
+            if (!task.initialPromptSent && task.pendingPrompt && !task.autoTrustPending && this.isReadyForInitialInput(recentOutput)) {
                 logger.info('Claude ready, sending prompt', { taskId: task.id, prompt: task.pendingPrompt });
                 task.initialPromptSent = true;
                 const prompt = task.pendingPrompt;
