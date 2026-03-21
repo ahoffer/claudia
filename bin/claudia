@@ -1,0 +1,330 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# =============================================================================
+# claudia — manage the Claudia server (local VM or remote host)
+#
+# Usage: claudia <command> [args]
+#   start           Start Claudia (and VM if local mode)
+#   stop            Stop Claudia
+#   logs            Tail Claudia logs
+#   ssh [cmd]       Open shell on host, or run a command
+#   trust <path>    Pre-trust a workspace path with Claude Code
+#   status          Show status and URL
+#
+# Mode (local or remote) is read from ~/.config/claudia/config.
+# Defaults to local mode if no config exists.
+# =============================================================================
+
+CONFIG="${HOME}/.config/claudia/config"
+[ -f "$CONFIG" ] && source "$CONFIG"
+
+MODE="${MODE:-local}"
+CLAUDIA_PORT="${CLAUDIA_PORT:-4001}"
+COLIMA_PROFILE="${COLIMA_PROFILE:-claudia}"
+REMOTE_HOST="${REMOTE_HOST:-}"
+PROJECTS_DIR="${PROJECTS_DIR:-${HOME}/projects}"
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+ok()   { echo -e "${GREEN}[✓]${NC} $*"; }
+warn() { echo -e "${YELLOW}[!]${NC} $*"; }
+fail() { echo -e "${RED}[✗]${NC} $*" >&2; }
+step() { echo -e "${CYAN}[→]${NC} $*"; }
+
+usage() {
+    echo "Usage: claudia <command> [args]"
+    echo ""
+    echo "Commands:"
+    echo "  start           Start Claudia (and VM if local mode)"
+    echo "  stop            Stop Claudia"
+    echo "  logs            Tail Claudia logs"
+    echo "  ssh [cmd]       Open shell on host, or run a command"
+    echo "  trust <path>    Pre-trust a workspace path with Claude Code"
+    echo "  status          Show status and URL"
+    echo ""
+    if [ "$MODE" = "remote" ]; then
+        echo "Mode: remote  (host: ${REMOTE_HOST:-not configured})"
+    else
+        echo "Mode: local   (Colima profile: $COLIMA_PROFILE)"
+    fi
+}
+
+# =============================================================================
+# Transport helpers — the only place that knows local vs remote
+# =============================================================================
+
+# Run a command on the host
+host_run() {
+    if [ "$MODE" = "remote" ]; then
+        ssh "$REMOTE_HOST" -- "$@"
+    else
+        colima ssh -p "$COLIMA_PROFILE" -- "$@"
+    fi
+}
+
+# Pipe a heredoc script into a login bash on the host
+host_run_script() {
+    local script_file
+    script_file=$(mktemp /tmp/claudia-XXXXXX.sh)
+    trap 'rm -f "$script_file"' RETURN
+    cat > "$script_file"
+    if [ "$MODE" = "remote" ]; then
+        ssh "$REMOTE_HOST" -- bash -ls < "$script_file"
+    else
+        colima ssh -p "$COLIMA_PROFILE" -- bash -ls < "$script_file"
+    fi
+}
+
+# Open an interactive shell (needs PTY)
+host_shell() {
+    if [ "$MODE" = "remote" ]; then
+        if [ $# -eq 0 ]; then
+            ssh "$REMOTE_HOST"
+        else
+            ssh "$REMOTE_HOST" -- "$@"
+        fi
+    else
+        if [ $# -eq 0 ]; then
+            colima ssh -p "$COLIMA_PROFILE"
+        else
+            colima ssh -p "$COLIMA_PROFILE" -- "$@"
+        fi
+    fi
+}
+
+# Get the host's IP/address for building the URL
+get_host_addr() {
+    if [ "$MODE" = "remote" ]; then
+        # Extract just the host part from user@host
+        echo "${REMOTE_HOST#*@}"
+    else
+        colima list 2>/dev/null | grep -E "^${COLIMA_PROFILE}\b" | awk '{print $NF}'
+    fi
+}
+
+# Ensure the host is reachable before doing anything else
+ensure_reachable() {
+    if [ "$MODE" = "remote" ]; then
+        if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$REMOTE_HOST" -- echo ok >/dev/null 2>&1; then
+            fail "Cannot reach $REMOTE_HOST — is it running and is SSH available?"
+            exit 1
+        fi
+    else
+        if ! colima list 2>/dev/null | grep -E "^${COLIMA_PROFILE}\b" | grep -q Running; then
+            step "Starting Colima VM '$COLIMA_PROFILE'..."
+            colima start -p "$COLIMA_PROFILE"
+        fi
+    fi
+}
+
+# Check MCP servers are running on this Mac, warn if not
+check_mcp() {
+    local mcp_ok=true
+    for port in 8100 8101; do
+        if lsof -i ":$port" -sTCP:LISTEN >/dev/null 2>&1; then
+            ok "MCP server on :$port is running"
+        else
+            fail "MCP server on :$port is NOT running"
+            mcp_ok=false
+        fi
+    done
+    if [ "$mcp_ok" = false ]; then
+        echo ""
+        warn "MCP servers are not running. Claude won't have Mac file/shell access."
+        warn "Fix: run 'mcp restart' or re-run setup-mcp-host.sh"
+        echo ""
+        read -rp "    Continue anyway? [y/N] " REPLY
+        case "$REPLY" in
+            y|Y) step "Continuing without MCP..." ;;
+            *)   echo "Aborted."; exit 1 ;;
+        esac
+    fi
+}
+
+# =============================================================================
+# Commands
+# =============================================================================
+
+cmd_start() {
+    ensure_reachable
+    check_mcp
+
+    if [ "$MODE" = "remote" ]; then
+        # Remote: managed by systemd service installed by setup-claudia-remote.sh
+        step "Starting Claudia service on $REMOTE_HOST..."
+        host_run -- sudo systemctl start claudia
+        sleep 2
+        if host_run -- systemctl is-active claudia >/dev/null 2>&1; then
+            ok "Claudia service is active"
+        else
+            fail "Claudia service failed to start"
+            host_run -- journalctl -u claudia -n 20 --no-pager 2>/dev/null || true
+            exit 1
+        fi
+    else
+        # Local VM: no systemd, use nohup
+        step "Starting Claudia in VM..."
+        host_run_script << 'INNER'
+set -euo pipefail
+export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
+
+if ss -tlnp 2>/dev/null | grep -q ':4001'; then
+    echo "[✓] Claudia already running on port 4001"
+else
+    pkill -f 'node.*claudia' 2>/dev/null || true
+    sleep 1
+    nohup claudia > /tmp/claudia.log 2>&1 &
+    disown
+
+    echo -n "[→] Waiting for Claudia"
+    for i in $(seq 1 30); do
+        if ss -tlnp 2>/dev/null | grep -q ':4001'; then
+            echo ""
+            echo "[✓] Claudia is ready"
+            break
+        fi
+        echo -n "."
+        sleep 1
+    done
+
+    if ! ss -tlnp 2>/dev/null | grep -q ':4001'; then
+        echo ""
+        echo "[✗] Claudia failed to start. Last 20 lines:"
+        tail -20 /tmp/claudia.log 2>/dev/null || true
+        exit 1
+    fi
+fi
+INNER
+    fi
+
+    local host_addr url
+    host_addr=$(get_host_addr)
+    url="http://${host_addr}:${CLAUDIA_PORT}"
+
+    echo -n "[→] Verifying Claudia at $url"
+    local http_code health_ok=false
+    for _ in $(seq 1 10); do
+        http_code=$(curl -s -o /dev/null -w '%{http_code}' "$url/" 2>/dev/null || true)
+        if [ "$http_code" = "200" ]; then
+            health_ok=true
+            echo ""
+            break
+        fi
+        echo -n "."
+        sleep 1
+    done
+
+    if [ "$health_ok" = false ]; then
+        echo ""
+        fail "Health check failed — try: claudia logs"
+        exit 1
+    fi
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "  ${GREEN}Claudia is running at $url${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+}
+
+cmd_stop() {
+    step "Stopping Claudia..."
+    if [ "$MODE" = "remote" ]; then
+        host_run -- sudo systemctl stop claudia \
+            && ok "Claudia stopped" \
+            || warn "Claudia was not running"
+    else
+        host_run -- pkill -f 'node.*claudia' 2>/dev/null \
+            && ok "Claudia stopped" \
+            || warn "Claudia was not running"
+    fi
+}
+
+cmd_logs() {
+    if [ "$MODE" = "remote" ]; then
+        host_run -- journalctl -u claudia -f --no-pager
+    else
+        host_run -- tail -f /tmp/claudia.log
+    fi
+}
+
+cmd_ssh() {
+    host_shell "$@"
+}
+
+cmd_trust() {
+    local path="${1:-}"
+    if [ -z "$path" ]; then
+        echo "Usage: claudia trust <workspace-path>"
+        echo "Example: claudia trust /Users/aaron/projects/myapp"
+        exit 1
+    fi
+
+    step "Pre-trusting workspace: $path"
+
+    # Use --dangerously-skip-permissions to bypass the interactive trust prompt
+    # in headless mode. This is the standard approach for automated/remote setups.
+    if [ "$MODE" = "remote" ]; then
+        ssh -t "$REMOTE_HOST" -- bash -lc \
+            "export PATH=\$HOME/.npm-global/bin:\$HOME/.local/bin:\$PATH
+             cd '$path' 2>/dev/null || { echo '[✗] Path not found: $path'; exit 1; }
+             claude --dangerously-skip-permissions -p 'respond with only the word ok' \
+                 --max-turns 1 2>/dev/null && echo '[✓] Workspace trusted: $path'"
+    else
+        colima ssh -p "$COLIMA_PROFILE" -t -- bash -lc \
+            "export PATH=\$HOME/.npm-global/bin:\$HOME/.local/bin:\$PATH
+             cd '$path' 2>/dev/null || { echo '[✗] Path not found: $path'; exit 1; }
+             claude --dangerously-skip-permissions -p 'respond with only the word ok' \
+                 --max-turns 1 2>/dev/null && echo '[✓] Workspace trusted: $path'"
+    fi
+}
+
+cmd_status() {
+    echo ""
+    if [ "$MODE" = "remote" ]; then
+        echo "Mode:  remote"
+        echo "Host:  ${REMOTE_HOST:-not configured}"
+        local host_addr="${REMOTE_HOST#*@}"
+        echo "URL:   http://${host_addr}:${CLAUDIA_PORT}"
+    else
+        echo "Mode:  local (Colima: $COLIMA_PROFILE)"
+        local host_addr
+        host_addr=$(get_host_addr 2>/dev/null || echo "VM not running")
+        echo "URL:   http://${host_addr}:${CLAUDIA_PORT}"
+    fi
+    echo ""
+
+    if host_run -- ss -tlnp 2>/dev/null | grep -q ":${CLAUDIA_PORT}"; then
+        ok "Claudia is running"
+    else
+        fail "Claudia is not running  (start with: claudia start)"
+    fi
+    echo ""
+}
+
+# =============================================================================
+# Dispatch
+# =============================================================================
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+    start)  cmd_start  "$@" ;;
+    stop)   cmd_stop   "$@" ;;
+    logs)   cmd_logs   "$@" ;;
+    ssh)    cmd_ssh    "$@" ;;
+    trust)  cmd_trust  "$@" ;;
+    status) cmd_status "$@" ;;
+    ""|--help|-h) usage ;;
+    *)
+        echo "Unknown command: $cmd" >&2
+        usage >&2
+        exit 1
+        ;;
+esac

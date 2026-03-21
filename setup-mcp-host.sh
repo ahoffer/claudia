@@ -2,49 +2,36 @@
 set -euo pipefail
 
 # =============================================================================
-# setup-mcp-host.sh  (v2 — post network audit)
+# setup-mcp-host.sh  (v3 — local VM + remote host)
 #
-# SCRIPT 2 OF 2 — Run this SECOND, after setup-claudia-vm.sh.
-# The Colima VM must be running before you run this script.
+# Run on your Mac. Installs MCP servers that Claude Code connects to over HTTP.
+# Claude can read/write files and run commands on your Mac from any host.
 #
-# Run on your Mac. Installs MCP servers that Claude Code in the Colima VM
-# connects to over HTTP. Claude can read/write files and run commands on
-# your Mac without virtiofs mounts.
-#
-# MCP servers (on Mac, reachable from VM):
+# MCP servers (on Mac):
 #   Port 8100 — Filesystem MCP  (read/write ~/projects)
 #   Port 8101 — Shell MCP       (execute commands, read/write files)
 #
 # IMPORTANT NETWORK NOTES:
 #   - supergateway's --baseUrl MUST be set to the host IP (not localhost),
 #     because it returns the message POST URL to SSE clients in the
-#     "endpoint" event. Without this, the VM client would POST to its
-#     own localhost and fail silently.
-#   - macOS firewall must allow incoming connections on 8100/8101 from
-#     the VM's virtual network.
+#     "endpoint" event. Without this, the client would POST to its own
+#     localhost and fail silently.
+#   - macOS firewall must allow incoming connections on 8100/8101.
 #   - Node.js http.listen(port) defaults to 0.0.0.0 (all interfaces).
 #
-# REMOTE HOSTING:
-#   When Claude Code runs on a remote host (not a local VM), this Mac
-#   must be reachable from that host. Current approach: use the LAN IP.
-#   For SSHFS file mounts: see claudia-mount-remote.sh
+# Usage:
+#   bash setup-mcp-host.sh                    # local Colima VM mode
+#   bash setup-mcp-host.sh --remote user@host # remote host mode
 #
-# TODO: Tailscale — install on Mac + remote host for stable private IPs
-#   (brew install tailscale). Replace HOST_IP discovery with Tailscale IP
-#   (100.x.x.x) or MagicDNS hostname. This solves:
-#     - Mac IP changes (WiFi/DHCP/VPN)
-#     - NAT traversal (remote host can reach Mac from anywhere)
-#     - Encryption (WireGuard under the hood)
-#   After Tailscale: mcp-reconfig to update MCP server URLs.
-#
-# Prerequisites: node 18+, colima VM 'claudia' running
-# Usage:         bash setup-mcp-host.sh
-# Idempotent:    safe to re-run
+# Prerequisites (local):  node 18+, colima VM 'claudia' running
+# Prerequisites (remote): node 18+, SSH access to remote host
+# Idempotent: safe to re-run
 # =============================================================================
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 PROJECTS_DIR="$HOME/projects"
 COLIMA_PROFILE="claudia"
+REMOTE_HOST=""   # set via --remote user@host
 MCP_DIR="$HOME/.local/share/claudia-mcp"
 LOG_DIR="$MCP_DIR/logs"
 BINDIR="$HOME/.local/bin"
@@ -66,12 +53,45 @@ step()  { echo -e "${CYAN}[→]${NC} $*"; }
 err()   { echo -e "${RED}[✗]${NC} $*" >&2; exit 1; }
 
 # =============================================================================
+# Argument parsing
+# =============================================================================
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --remote)
+            [ -n "${2:-}" ] || err "--remote requires user@host argument"
+            REMOTE_HOST="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: bash setup-mcp-host.sh [--remote user@host]"
+            exit 0
+            ;;
+        *)
+            err "Unknown argument: $1"
+            ;;
+    esac
+done
+
+# Helper: run a command on the Claude host (VM or remote)
+claude_host_cmd() {
+    if [ -n "$REMOTE_HOST" ]; then
+        ssh "$REMOTE_HOST" -- "$@"
+    else
+        colima ssh -p "$COLIMA_PROFILE" -- "$@"
+    fi
+}
+
+# =============================================================================
 # Preflight
 # =============================================================================
 
 command -v node >/dev/null 2>&1 || err "node not found on PATH. Install node or ensure nvm is loaded."
 command -v npm >/dev/null 2>&1  || err "npm not found on PATH."
-command -v colima >/dev/null 2>&1 || err "colima not found. Install: brew install colima"
+
+if [ -z "$REMOTE_HOST" ]; then
+    command -v colima >/dev/null 2>&1 || err "colima not found. Install: brew install colima"
+fi
 
 NODE_BIN_PATH=$(which node)
 NODE_DIR=$(dirname "$NODE_BIN_PATH")
@@ -93,52 +113,66 @@ echo "$SCRIPT_PATH" > "$MCP_DIR/setup-script-path.txt"
 # which from the VM means the VM's own localhost — total failure.
 # =============================================================================
 
-step "Discovering host IP reachable from Colima VM..."
-
 HOST_IP=""
 
-if ! colima list 2>/dev/null | grep -E "^${COLIMA_PROFILE}\b" | grep -q Running; then
-    err "Colima VM '$COLIMA_PROFILE' is not running. Run setup-claudia-vm.sh first, then: colima start -p $COLIMA_PROFILE"
-fi
+if [ -n "$REMOTE_HOST" ]; then
+    # --- Remote mode: ping-test Mac's IPs from the remote host ---
+    step "Discovering Mac IP reachable from remote host $REMOTE_HOST..."
 
-# Method 1: Match VM's subnet to find the correct gateway
-# The VM may have multiple default routes (VPN, Docker, etc).
-# We need the gateway on the same subnet as the VM's colima IP.
-VM_IP=$(colima list 2>/dev/null | grep -E "^${COLIMA_PROFILE}\b" | awk '{print $NF}')
-VM_SUBNET=${VM_IP%.*}  # e.g. 192.168.64.3 → 192.168.64
-
-if [ -n "$VM_SUBNET" ] && [ "$VM_SUBNET" != "$VM_IP" ]; then
-    # Get all default gateways, pick the one matching VM's subnet
-    ALL_GW=$(colima ssh -p "$COLIMA_PROFILE" -- ip route 2>/dev/null | awk '/default/{print $3}' || true)
-    for gw in $ALL_GW; do
-        if [ "${gw%.*}" = "$VM_SUBNET" ]; then
-            HOST_IP="$gw"
-            info "Host IP from VM gateway: $HOST_IP (matches VM subnet $VM_SUBNET.*)"
-            break
+    for iface in en0 en1 en2 en3; do
+        candidate=$(ipconfig getifaddr "$iface" 2>/dev/null || true)
+        if [ -n "$candidate" ]; then
+            if ssh "$REMOTE_HOST" -- ping -c1 -W3 "$candidate" >/dev/null 2>&1; then
+                HOST_IP="$candidate"
+                info "Mac IP: $HOST_IP (reachable from remote via $iface)"
+                break
+            fi
         fi
     done
-fi
 
-# Method 2: Fallback to en0
-if [ -z "$HOST_IP" ]; then
-    EN0=$(ipconfig getifaddr en0 2>/dev/null || true)
-    if [ -n "$EN0" ]; then
-        HOST_IP="$EN0"
-        info "Host IP from en0: $HOST_IP"
+    if [ -z "$HOST_IP" ]; then
+        warn "Could not auto-detect Mac IP reachable from $REMOTE_HOST."
+        read -rp "  Enter Mac IP manually: " HOST_IP
+        [ -n "$HOST_IP" ] || err "Mac IP is required."
     fi
-fi
+else
+    # --- Local mode: discover Mac IP via Colima VM's routing table ---
+    step "Discovering host IP reachable from Colima VM..."
 
-# Method 3: Fallback to en1
-if [ -z "$HOST_IP" ]; then
-    EN1=$(ipconfig getifaddr en1 2>/dev/null || true)
-    if [ -n "$EN1" ]; then
-        HOST_IP="$EN1"
-        info "Host IP from en1: $HOST_IP"
+    if ! colima list 2>/dev/null | grep -E "^${COLIMA_PROFILE}\b" | grep -q Running; then
+        err "Colima VM '$COLIMA_PROFILE' is not running. Run setup-claudia-vm.sh first, then: colima start -p $COLIMA_PROFILE"
     fi
-fi
 
-if [ -z "$HOST_IP" ]; then
-    err "Could not discover host IP. Ensure Mac has a network connection and VM is running."
+    # Match VM's subnet to find the correct gateway (handles VPN/Docker routes)
+    VM_IP=$(colima list 2>/dev/null | grep -E "^${COLIMA_PROFILE}\b" | awk '{print $NF}')
+    VM_SUBNET=${VM_IP%.*}  # e.g. 192.168.64.3 → 192.168.64
+
+    if [ -n "$VM_SUBNET" ] && [ "$VM_SUBNET" != "$VM_IP" ]; then
+        ALL_GW=$(colima ssh -p "$COLIMA_PROFILE" -- ip route 2>/dev/null | awk '/default/{print $3}' || true)
+        for gw in $ALL_GW; do
+            if [ "${gw%.*}" = "$VM_SUBNET" ]; then
+                HOST_IP="$gw"
+                info "Host IP from VM gateway: $HOST_IP (matches VM subnet $VM_SUBNET.*)"
+                break
+            fi
+        done
+    fi
+
+    # Fallbacks
+    if [ -z "$HOST_IP" ]; then
+        for iface in en0 en1; do
+            candidate=$(ipconfig getifaddr "$iface" 2>/dev/null || true)
+            if [ -n "$candidate" ]; then
+                HOST_IP="$candidate"
+                info "Host IP from $iface: $HOST_IP"
+                break
+            fi
+        done
+    fi
+
+    if [ -z "$HOST_IP" ]; then
+        err "Could not discover host IP. Ensure Mac has a network connection and VM is running."
+    fi
 fi
 
 # Save IP for helper scripts
@@ -153,7 +187,7 @@ step "Checking macOS firewall..."
 # Check if firewall is enabled (returns 1 if enabled)
 if /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2>/dev/null | grep -q "enabled"; then
     warn "macOS Firewall is ENABLED."
-    warn "The VM needs to reach ports $FS_PORT and $SHELL_PORT on this Mac."
+    warn "The client host needs to reach ports $FS_PORT and $SHELL_PORT on this Mac."
     warn "When the MCP servers start, macOS may show a popup asking to allow"
     warn "incoming connections for 'node'. Click ALLOW."
     warn ""
@@ -499,32 +533,34 @@ if [ "$FS_OK" = false ] || [ "$SHELL_OK" = false ]; then
     tail -10 "$LOG_DIR/shell-stderr.log" 2>/dev/null || echo "(no log)"
 fi
 
-# --- VM → Mac TCP connectivity test ---
-step "Testing TCP connectivity from VM to Mac ($HOST_IP)..."
+# --- Host → Mac TCP connectivity test ---
+CLIENT_LABEL="VM"
+[ -n "$REMOTE_HOST" ] && CLIENT_LABEL="remote host"
+step "Testing TCP connectivity from $CLIENT_LABEL to Mac ($HOST_IP)..."
 
-VM_TCP_OK=true
+HOST_TCP_OK=true
 for port in $FS_PORT $SHELL_PORT; do
-    if colima ssh -p "$COLIMA_PROFILE" -- bash -c "echo > /dev/tcp/$HOST_IP/$port" 2>/dev/null; then
-        info "VM → $HOST_IP:$port TCP OK"
+    if claude_host_cmd -- bash -c "echo > /dev/tcp/$HOST_IP/$port" 2>/dev/null; then
+        info "$CLIENT_LABEL → $HOST_IP:$port TCP OK"
     else
-        warn "VM → $HOST_IP:$port TCP FAILED"
+        warn "$CLIENT_LABEL → $HOST_IP:$port TCP FAILED"
         warn "macOS firewall may be blocking. Allow 'node' in System Settings > Network > Firewall."
-        VM_TCP_OK=false
+        HOST_TCP_OK=false
     fi
 done
 
-# --- MCP SSE handshake test from VM ---
-if [ "$VM_TCP_OK" = true ]; then
-    step "Testing MCP SSE handshake from VM..."
+# --- MCP SSE handshake test from host ---
+if [ "$HOST_TCP_OK" = true ]; then
+    step "Testing MCP SSE handshake from $CLIENT_LABEL..."
     for port_name in "$FS_PORT:filesystem" "$SHELL_PORT:shell"; do
         port=${port_name%%:*}
         name=${port_name##*:}
-        SSE_RESPONSE=$(colima ssh -p "$COLIMA_PROFILE" -- \
+        SSE_RESPONSE=$(claude_host_cmd -- \
             curl -s --max-time 5 -H "Accept: text/event-stream" "http://$HOST_IP:$port/sse" 2>/dev/null | head -5 || true)
         if echo "$SSE_RESPONSE" | grep -q "event:"; then
-            info "$name MCP SSE handshake OK from VM"
+            info "$name MCP SSE handshake OK from $CLIENT_LABEL"
         else
-            warn "$name MCP SSE handshake failed from VM"
+            warn "$name MCP SSE handshake failed from $CLIENT_LABEL"
             warn "Response: ${SSE_RESPONSE:-<empty>}"
         fi
     done
@@ -534,27 +570,31 @@ fi
 # Phase 8: Configure Claude Code in VM
 # =============================================================================
 
-step "Configuring Claude Code in VM to use Mac MCP servers..."
+if [ -n "$REMOTE_HOST" ]; then
+    step "Configuring Claude Code on remote host $REMOTE_HOST to use Mac MCP servers..."
+else
+    step "Configuring Claude Code in VM to use Mac MCP servers..."
+fi
 
 # Remove existing configs (idempotent)
-colima ssh -p "$COLIMA_PROFILE" -- bash -lc "claude mcp remove mac-filesystem 2>/dev/null || true"
-colima ssh -p "$COLIMA_PROFILE" -- bash -lc "claude mcp remove mac-shell 2>/dev/null || true"
+claude_host_cmd -- bash -lc "claude mcp remove mac-filesystem 2>/dev/null || true"
+claude_host_cmd -- bash -lc "claude mcp remove mac-shell 2>/dev/null || true"
 
 # Add MCP servers using SSE transport with the Mac's IP
-colima ssh -p "$COLIMA_PROFILE" -- bash -lc \
+claude_host_cmd -- bash -lc \
     "claude mcp add --transport sse mac-filesystem http://$HOST_IP:$FS_PORT/sse --scope user"
-colima ssh -p "$COLIMA_PROFILE" -- bash -lc \
+claude_host_cmd -- bash -lc \
     "claude mcp add --transport sse mac-shell http://$HOST_IP:$SHELL_PORT/sse --scope user"
 
-info "Claude Code configured with remote MCP servers"
+info "Claude Code configured with Mac MCP servers"
 
 # Verify registration
-if colima ssh -p "$COLIMA_PROFILE" -- bash -lc "claude mcp list 2>/dev/null" | grep -q "mac-filesystem"; then
+if claude_host_cmd -- bash -lc "claude mcp list 2>/dev/null" | grep -q "mac-filesystem"; then
     info "mac-filesystem registered in Claude Code"
 else
     warn "mac-filesystem not visible in 'claude mcp list'"
 fi
-if colima ssh -p "$COLIMA_PROFILE" -- bash -lc "claude mcp list 2>/dev/null" | grep -q "mac-shell"; then
+if claude_host_cmd -- bash -lc "claude mcp list 2>/dev/null" | grep -q "mac-shell"; then
     info "mac-shell registered in Claude Code"
 else
     warn "mac-shell not visible in 'claude mcp list'"
