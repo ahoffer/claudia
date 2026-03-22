@@ -109,6 +109,17 @@ cd "$(dirname "$0")"
 # Export CLAUDIA_BACKEND_PORT for the backend to use
 export CLAUDIA_BACKEND_PORT=$BACKEND_PORT
 
+# CORS_ORIGINS: allow requests from a reverse proxy (e.g. Caddy on :4443).
+# Read from environment if already set, otherwise derive from .env if present.
+# The value set here is a fallback default for the common single-proxy case.
+# Override by setting CORS_ORIGINS before running start.sh, or via .env.
+if [ -z "$CORS_ORIGINS" ]; then
+    HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    if [ -n "$HOST_IP" ]; then
+        export CORS_ORIGINS="https://${HOST_IP}:4443,https://localhost:4443"
+    fi
+fi
+
 # Increase Node.js memory limit for backend (handles many persisted tasks + archived tasks)
 export NODE_OPTIONS="--max-old-space-size=8192"
 

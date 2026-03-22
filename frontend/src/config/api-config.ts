@@ -4,6 +4,10 @@
  * When accessed via a localtunnel (e.g. mobile over the internet), the
  * backend reverse-proxies the frontend on the same origin, so we use
  * same-origin URLs instead of pointing at a separate port.
+ * When accessed via an HTTPS reverse proxy (e.g. Caddy on a remote host),
+ * the page protocol is https: — we use same-origin URLs so requests go
+ * through the proxy rather than trying to reach the backend port directly
+ * (which would be blocked as mixed content).
  */
 import { PORTS } from '@claudia/shared';
 
@@ -12,6 +16,17 @@ export function isTunnelAccess(): boolean {
     const host = window.location.hostname;
     return host.includes('.loca.lt') || host.includes('localtunnel') ||
            host.includes('.ngrok-free.app') || host.includes('.ngrok.io') || host.includes('ngrok');
+}
+
+/**
+ * True when the page was loaded via HTTPS from a non-tunnel host, meaning
+ * a reverse proxy (e.g. Caddy) is terminating TLS in front of the backend.
+ * In this case all API and WebSocket traffic must go through the same origin
+ * so the proxy can forward it — direct connections to the backend port would
+ * be blocked as mixed content.
+ */
+export function isReverseProxyAccess(): boolean {
+    return window.location.protocol === 'https:' && !isTunnelAccess();
 }
 
 /**
@@ -37,6 +52,11 @@ export function getApiBaseUrl(): string {
         return window.location.origin;
     }
 
+    // HTTPS reverse proxy — use same origin so requests go through the proxy
+    if (isReverseProxyAccess()) {
+        return window.location.origin;
+    }
+
     // Web environment - use hostname with configured port
     return `http://${window.location.hostname}:${PORTS.BACKEND}`;
 }
@@ -59,6 +79,11 @@ export function getWebSocketUrl(): string {
         const base = `${proto}//${window.location.host}`;
         // Append mobile token so the backend accepts the WebSocket connection
         return token ? `${base}?token=${token}&mobile=1` : base;
+    }
+
+    // HTTPS reverse proxy — use wss: on the same host so the proxy forwards it
+    if (isReverseProxyAccess()) {
+        return `wss://${window.location.host}`;
     }
 
     // Web environment - use hostname with configured port
