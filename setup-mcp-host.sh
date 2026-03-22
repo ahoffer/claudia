@@ -29,6 +29,7 @@ set -euo pipefail
 # =============================================================================
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECTS_DIR="$HOME/projects"
 COLIMA_PROFILE="claudia"
 REMOTE_HOST=""   # set via --remote user@host
@@ -601,92 +602,31 @@ else
 fi
 
 # =============================================================================
-# Phase 9: Create helper scripts (always recreated)
+# Phase 9: Install helpers from bin/
+#
+# bin/claudia and bin/mcp are the canonical helper scripts, kept under version
+# control in the project. Install them here so both local-VM and remote users
+# get the same commands from the same source — no generated-script divergence.
 # =============================================================================
 
-step "Creating helper scripts..."
+step "Installing claudia and mcp helpers..."
 
-cat > "$BINDIR/mcp-status" << 'STATUSEOF'
-#!/usr/bin/env bash
-echo "=== MCP Server Status ==="
-echo ""
-for label in com.claudia.mcp.filesystem com.claudia.mcp.shell; do
-    name=${label##*.}
-    if launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1; then
-        pid=$(launchctl print "gui/$(id -u)/$label" 2>/dev/null | grep -m1 'pid' | awk '{print $NF}')
-        echo "[✓] $name (pid: ${pid:-unknown})"
+for helper in claudia mcp; do
+    src="$SCRIPT_DIR/bin/$helper"
+    dst="$BINDIR/$helper"
+    if [ -f "$src" ]; then
+        cp "$src" "$dst"
+        chmod +x "$dst"
+        info "Installed: $helper"
     else
-        echo "[✗] $name (not loaded)"
+        warn "bin/$helper not found in $SCRIPT_DIR/bin — skipping"
     fi
 done
-echo ""
-echo "Ports:"
-for port in 8100 8101; do
-    if lsof -i ":$port" -sTCP:LISTEN >/dev/null 2>&1; then
-        echo "  [✓] :$port listening"
-    else
-        echo "  [✗] :$port not listening"
-    fi
-done
-echo ""
-HOST_IP=$(cat "$HOME/.local/share/claudia-mcp/host-ip.txt" 2>/dev/null || echo "unknown")
-echo "Host IP for VM: $HOST_IP"
-echo "Logs: ~/.local/share/claudia-mcp/logs/"
-STATUSEOF
-chmod +x "$BINDIR/mcp-status"
 
-cat > "$BINDIR/mcp-restart" << RESTARTEOF
-#!/usr/bin/env bash
-echo "[→] Restarting MCP services..."
-launchctl kickstart -k "gui/\$(id -u)/$FS_LABEL" 2>/dev/null && echo "[✓] filesystem restarted" || echo "[✗] filesystem restart failed"
-launchctl kickstart -k "gui/\$(id -u)/$SHELL_LABEL" 2>/dev/null && echo "[✓] shell restarted" || echo "[✗] shell restart failed"
-sleep 2
-mcp-status
-RESTARTEOF
-chmod +x "$BINDIR/mcp-restart"
-
-cat > "$BINDIR/mcp-logs" << 'LOGSEOF'
-#!/usr/bin/env bash
-DIR="$HOME/.local/share/claudia-mcp/logs"
-if [ "${1:-}" = "fs" ] || [ "${1:-}" = "filesystem" ]; then
-    tail -f "$DIR/filesystem-stderr.log"
-elif [ "${1:-}" = "shell" ]; then
-    tail -f "$DIR/shell-stderr.log"
-else
-    echo "Usage: mcp-logs [fs|shell]"
-    echo ""
-    echo "Recent filesystem log:"
-    tail -5 "$DIR/filesystem-stderr.log" 2>/dev/null || echo "(empty)"
-    echo ""
-    echo "Recent shell log:"
-    tail -5 "$DIR/shell-stderr.log" 2>/dev/null || echo "(empty)"
+if ! echo "$PATH" | tr ':' '\n' | grep -qx "$BINDIR"; then
+    warn "~/.local/bin is not in your PATH."
+    warn "Add to your shell rc: export PATH=\"\$HOME/.local/bin:\$PATH\""
 fi
-LOGSEOF
-chmod +x "$BINDIR/mcp-logs"
-
-cat > "$BINDIR/mcp-stop" << STOPEOF
-#!/usr/bin/env bash
-echo "[→] Stopping MCP services..."
-launchctl bootout "gui/\$(id -u)/$FS_LABEL" 2>/dev/null && echo "[✓] filesystem stopped" || echo "[!] filesystem was not running"
-launchctl bootout "gui/\$(id -u)/$SHELL_LABEL" 2>/dev/null && echo "[✓] shell stopped" || echo "[!] shell was not running"
-STOPEOF
-chmod +x "$BINDIR/mcp-stop"
-
-cat > "$BINDIR/mcp-reconfig" << 'RECONFIGEOF'
-#!/usr/bin/env bash
-# Re-run when Mac IP changes (DHCP, WiFi switch, VPN toggle)
-SETUP_SCRIPT="$(cat "$HOME/.local/share/claudia-mcp/setup-script-path.txt" 2>/dev/null)"
-if [ -n "$SETUP_SCRIPT" ] && [ -f "$SETUP_SCRIPT" ]; then
-    echo "[→] Re-running MCP host setup to pick up new IP..."
-    bash "$SETUP_SCRIPT"
-else
-    echo "[!] Could not find setup-mcp-host.sh — re-download and run it"
-    exit 1
-fi
-RECONFIGEOF
-chmod +x "$BINDIR/mcp-reconfig"
-
-info "Created: mcp-status, mcp-restart, mcp-logs, mcp-stop, mcp-reconfig"
 
 # =============================================================================
 # Done
@@ -700,19 +640,15 @@ echo ""
 echo "  MCP servers running on Mac:"
 echo "    :$FS_PORT — Filesystem (read/write $PROJECTS_DIR)"
 echo "    :$SHELL_PORT — Shell     (execute commands on Mac)"
-echo "    Host IP:  $HOST_IP (used by VM to reach Mac)"
-echo ""
-echo "  Claude Code in VM is configured. When you start a Claude session,"
-echo "  it can use mac-filesystem and mac-shell tools to reach your Mac."
+echo "    Host IP:  $HOST_IP"
 echo ""
 echo "  Commands:"
-echo "    mcp-status       # health check"
-echo "    mcp-restart      # restart services"
-echo "    mcp-logs fs      # tail filesystem log"
-echo "    mcp-logs shell   # tail shell log"
-echo "    mcp-stop         # stop services"
-echo "    mcp-reconfig     # re-run setup (after IP change)"
+echo "    mcp status       # health check"
+echo "    mcp restart      # restart services"
+echo "    mcp logs fs      # tail filesystem log"
+echo "    mcp logs shell   # tail shell log"
+echo "    mcp stop         # stop services"
 echo ""
 echo "  If Mac IP changes (WiFi switch, DHCP renewal):"
-echo "    Re-run this script or: mcp-reconfig"
+echo "    Re-run this script"
 echo ""

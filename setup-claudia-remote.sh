@@ -380,7 +380,14 @@ AUTOMOUNTUNIT
 
 sudo systemctl daemon-reload
 sudo systemctl enable "\${UNIT_STEM}.automount"
-sudo systemctl restart "\${UNIT_STEM}.automount"
+
+# Only restart the automount if it wasn't already active — avoids yanking a
+# live mount out from under a running Claudia session on re-runs.
+if systemctl is-active "\${UNIT_STEM}.automount" >/dev/null 2>&1; then
+    echo "[✓] Automount already active — skipping restart"
+else
+    sudo systemctl start "\${UNIT_STEM}.automount"
+fi
 
 # Trigger the mount by listing the directory
 ls "\$MOUNT_PATH" >/dev/null 2>&1 && echo "[✓] SSHFS mount active: \$MOUNT_PATH" \
@@ -538,6 +545,13 @@ step "Creating systemd service for Claudia..."
 
 remote_run << CLAUDIASVC
 set -euo pipefail
+
+# Stop running Claudia before overwriting the service file so the daemon
+# picks up changes cleanly on the next start. Skipped if not running.
+if systemctl is-active claudia >/dev/null 2>&1; then
+    echo "[→] Stopping Claudia to reload service file..."
+    sudo systemctl stop claudia
+fi
 
 # Get full paths inside remote
 CLAUDE_BIN=\$(bash -lc 'which claudia 2>/dev/null' || true)
