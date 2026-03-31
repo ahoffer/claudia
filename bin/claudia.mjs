@@ -153,13 +153,6 @@ function runProduction() {
 
 switch (command) {
     case 'start':
-        if (isDev) {
-            runScript('start-electron');
-        } else {
-            runProduction();
-        }
-        break;
-
     case 'web':
         if (isDev) {
             runScript('start');

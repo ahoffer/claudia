@@ -3,15 +3,15 @@
   "productName": "Claudia",
   "version": "0.2.28",
   "description": "Multi-instance Claude Code orchestrator web UI",
-  "author": "Extropolis <contact@extropolis.ai>",
+  "author": "Aaron Hoffer",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/extropolis/claudia.git"
+    "url": "https://github.com/ahoffer/claudia.git"
   },
-  "homepage": "https://github.com/extropolis/claudia",
+  "homepage": "https://github.com/ahoffer/claudia",
   "bugs": {
-    "url": "https://github.com/extropolis/claudia/issues"
+    "url": "https://github.com/ahoffer/claudia/issues"
   },
   "keywords": [
     "claude",
@@ -34,9 +34,6 @@
     "shared/dist/",
     "shared/package.json",
     "start.sh",
-    "start.ps1",
-    "install.sh",
-    "install.ps1",
     "index.html",
     "styles.css",
     "version.txt",

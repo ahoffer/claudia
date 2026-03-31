@@ -45,17 +45,17 @@ irm https://claude.ai/install.ps1 | iex
 
 **macOS / Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/extropolis/claudia/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ahoffer/claudia/main/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/extropolis/claudia/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/ahoffer/claudia/main/install.ps1 | iex
 ```
 
 **Or install directly via npm:**
 ```bash
-npm install -g @extropolis/claudia
+npm install -g @ahoffer/claudia
 ```
 
 <details>
@@ -63,7 +63,7 @@ npm install -g @extropolis/claudia
 
 ```bash
 # Clone the repository
-git clone https://github.com/extropolis/claudia.git
+git clone https://github.com/ahoffer/claudia.git
 cd claudia
 
 # Install dependencies
@@ -356,7 +356,7 @@ That's it. The script will:
 The CI/CD pipeline then:
 1. Builds and runs all tests automatically
 2. Pauses for **your approval** in GitHub Actions
-3. Publishes `@extropolis/claudia` to npm
+3. Publishes `@ahoffer/claudia` to npm
 
 **Other version commands:**
 ```bash
@@ -427,8 +427,8 @@ MIT - see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request on [GitHub](https://github.com/extropolis/claudia).
+Contributions are welcome! Please open an issue or submit a pull request on [GitHub](https://github.com/ahoffer/claudia).
 
 ## Support
 
-If you have any issues or questions, please [open an issue](https://github.com/extropolis/claudia/issues).
+If you have any issues or questions, please [open an issue](https://github.com/ahoffer/claudia/issues).
