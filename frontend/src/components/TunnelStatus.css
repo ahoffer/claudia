@@ -1,0 +1,95 @@
+.tunnel-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+    font-size: 0.75rem;
+    cursor: default;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.tunnel-status.tunnel-connected {
+    color: var(--accent-green);
+    border-color: rgba(63, 185, 80, 0.3);
+}
+
+.tunnel-status.tunnel-disconnected {
+    color: var(--accent-red);
+    border-color: rgba(248, 81, 73, 0.3);
+}
+
+.tunnel-status.tunnel-unknown {
+    color: var(--text-muted);
+}
+
+.tunnel-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.tunnel-connected .tunnel-dot {
+    background: var(--accent-green);
+}
+
+.tunnel-disconnected .tunnel-dot {
+    background: var(--accent-red);
+}
+
+.tunnel-unknown .tunnel-dot {
+    background: var(--text-muted);
+}
+
+.tunnel-label {
+    color: var(--text-muted);
+    font-size: 0.625rem;
+    text-transform: uppercase;
+}
+
+.tunnel-state {
+    font-weight: 600;
+}
+
+/* Tooltip */
+.tunnel-status:hover .tunnel-tooltip {
+    display: block;
+}
+
+.tunnel-tooltip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 200px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.7rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: nowrap;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.tunnel-tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.tunnel-tooltip-key {
+    color: var(--text-muted);
+}
+
+.tunnel-tooltip-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}

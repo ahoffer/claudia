@@ -7,6 +7,7 @@ import { SettingsMenu } from './components/SettingsMenu';
 import { GlobalVoiceManager } from './components/GlobalVoiceManager';
 import { GlobalVoiceToggle } from './components/GlobalVoiceToggle';
 import { SystemStats } from './components/SystemStats';
+import { TunnelStatus } from './components/TunnelStatus';
 import { MobileAccessModal } from './components/MobileAccessModal';
 import { FileExplorer } from './components/FileExplorer';
 import { ShellTerminalView } from './components/ShellTerminalView';
@@ -440,6 +441,7 @@ function App() {
                     </div>
 
                     {showSystemStats && <SystemStats />}
+                    <TunnelStatus />
                     {!isMobile && supervisorEnabled && (
                         <button
                             className={`chat-toggle-button ${showChatPanel ? 'active' : ''} ${hasUnreadMessages ? 'has-messages' : ''}`}

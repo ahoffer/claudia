@@ -322,11 +322,11 @@ CLIENT MACHINE  (Mac, Linux, Windows)
                           │ outbound WSS :4443
   ┌───────────────────────┼──────────────────────────────────────────┐
   │  claudia-client daemon (outbound WSS :4443 — MCP tunnel)          │
-  │    forwards MCP calls to:                                         │
+  │    spawns and manages child processes:                            │
   │      localhost:8100  (filesystem-mcp)                             │
   │      localhost:8101  (shell-mcp)                                  │
   │    returns results back through the tunnel                        │
-  │    managed by launchd (Mac) or systemd (Linux)                    │
+  │    runs on demand — no OS service installation required           │
   └───────────────────────┬──────────────────────────────────────────┘
                           │ outbound WSS :4443
                           ▼
@@ -359,8 +359,10 @@ SERVER  —  AMD64 Ubuntu (VM or bare metal)
 - `claudia-client` forwards each request to the appropriate local MCP server (`localhost:8100` or `localhost:8101`) and returns the result through the tunnel.
 - There is no `CLIENT_IP` or `MAC_IP` configuration. Direct IP connections from server to client are gone.
 - `claudia-client` reconnects automatically on disconnect.
-- The `bin/mcp` helper manages the `claudia-client` daemon and local MCP services on the client.
+- The `bin/mcp` helper starts, stops, and monitors `claudia-client` on the client machine.
 - The `bin/claudia` helper manages the Claudia server process on the server.
+- Startup diagnostic: on launch, `claudia-client` checks local MCP port reachability (TCP connect to `localhost:8100` and `localhost:8101`) and reports config file presence, server URL, and token status before connecting.
+- Observability: `GET /api/mcp-tunnel/status` returns live tunnel health (`connected`, `clientId`, `connectedAt`, `requestCount`, `errorCount`, `lastRequestAt`) and is also included in the `GET /api/health` response under the `mcpTunnel` key.
 
 ---
 
@@ -565,7 +567,7 @@ Browser (any device)
 - **Bearer token auth** — a shared secret in `config.json`, checked by Express middleware. Simple and sufficient for single-user/team deployments.
 - **Environment parity** — VM and remote host run identically. The only difference is the nginx cert and the DNS/IP used to reach it.
 - **Co-location requirement** — the Claude Code CLI (`claude`) must be installed on the same machine as the backend. Remote deployments are "bring your own host with claude installed."
-- **Client daemon required for MCP** — when the server is remote, the `claudia-client` daemon must be installed and running on the client machine. It establishes the outbound WSS tunnel through which all MCP tool calls travel. Install it via the `bin/mcp` helper on the client.
+- **Client daemon required for MCP** — when the server is remote, `claudia-client` must be running on the client machine. It establishes the outbound WSS tunnel through which all MCP tool calls travel, and spawns `filesystem-mcp` and `shell-mcp` as child processes automatically. Use `mcp start` to launch it in the background; no OS service installation is required.
 
 ### TLS (Self-Signed Certs)
 

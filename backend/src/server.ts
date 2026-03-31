@@ -22,6 +22,7 @@ import { validateConfigUpdate, validateWorkspacePath } from './validation.js';
 import { isGitRepo, getDefaultBranch, getCurrentBranch, checkoutBranch } from './git-utils.js';
 import { LearningsStore } from './learnings-store.js';
 import { TunnelManager } from './tunnel-manager.js';
+import { McpTunnel } from './mcp-tunnel.js';
 import { getMobilePageHtml } from './mobile-page.js';
 import { getVoiceAgentPageHtml } from './voice-agent-page.js';
 import { VoiceSupervisor } from './voice-supervisor.js';
@@ -314,6 +315,9 @@ export async function createApp(basePath?: string) {
     // TunnelManager for mobile remote access (ngrok-based, created early for middleware use)
     const tunnelManager = new TunnelManager(PORTS.BACKEND);
     logger.info('TunnelManager created (ngrok)');
+
+    // McpTunnel for routing MCP requests through connected claudia-client daemons
+    const mcpTunnel = new McpTunnel();
 
     // ===== Tunnel → React Frontend Proxy =====
     // When accessed through the tunnel, proxy non-API requests to the Vite
@@ -957,6 +961,57 @@ export async function createApp(basePath?: string) {
         const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
         const mobileToken = url.searchParams.get('token');
         const isMobile = url.searchParams.get('mobile') === '1';
+        const isDaemon = url.searchParams.get('daemon') === '1';
+
+        // ===== Daemon connection path =====
+        if (isDaemon) {
+            const authHeader = req.headers['authorization'] || '';
+            const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+            const expectedToken = process.env.CLAUDIA_TOKEN || '';
+
+            if (!expectedToken) {
+                logger.warn('Daemon connected but CLAUDIA_TOKEN is not set; rejecting');
+                ws.close(4003, 'CLAUDIA_TOKEN not configured on server');
+                return;
+            }
+            if (!bearerToken || bearerToken !== expectedToken) {
+                logger.error('Daemon WebSocket rejected: invalid token');
+                ws.close(4001, 'Invalid token');
+                return;
+            }
+
+            // Wait for the first message which must be daemon:hello
+            ws.once('message', (data: Buffer) => {
+                let msg: unknown;
+                try {
+                    msg = JSON.parse(data.toString());
+                } catch {
+                    logger.error('Daemon sent non-JSON hello');
+                    ws.close(4002, 'Invalid hello message');
+                    return;
+                }
+
+                if (
+                    typeof msg !== 'object' ||
+                    msg === null ||
+                    (msg as Record<string, unknown>)['type'] !== 'daemon:hello'
+                ) {
+                    logger.error('Daemon first message was not daemon:hello');
+                    ws.close(4002, 'Expected daemon:hello');
+                    return;
+                }
+
+                const hello = msg as { type: string; fsMcpPort?: number; shellMcpPort?: number };
+                const clientId = url.searchParams.get('clientId') || `daemon-${Date.now()}`;
+                const fsMcpPort = hello.fsMcpPort ?? 8100;
+                const shellMcpPort = hello.shellMcpPort ?? 8101;
+
+                mcpTunnel.registerDaemon(clientId, ws, { fsMcpPort, shellMcpPort });
+                logger.info('Daemon registered via WebSocket', { clientId, fsMcpPort, shellMcpPort });
+            });
+
+            return; // Do not fall through to the browser client path
+        }
 
         if (isMobile) {
             if (!mobileToken || !tunnelManager.validateToken(mobileToken)) {
@@ -1917,6 +1972,7 @@ export async function createApp(basePath?: string) {
                 rss: Math.round(mem.rss / 1024 / 1024),
                 heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
             },
+            mcpTunnel: mcpTunnel.getStatus(),
         });
     });
 
@@ -4887,6 +4943,66 @@ Guidelines:
 
     // Note: SIGINT/SIGTERM handlers are set up in index.ts to avoid duplicate handlers
     // The gracefulShutdown function is exported for use by the restart endpoint
+
+    // ===== MCP Tunnel Routes =====
+
+    // Status: tunnel health plus which claudia-client daemons are currently connected
+    app.get('/api/mcp-tunnel/status', (_req, res) => {
+        res.json({
+            ...mcpTunnel.getStatus(),
+            daemons: mcpTunnel.getDaemonStatus(),
+        });
+    });
+
+    // Proxy: forward an MCP HTTP request through a connected daemon
+    // POST /api/mcp-proxy/:clientId/:port/*
+    app.all('/api/mcp-proxy/:clientId/:port/*', async (req, res) => {
+        const { clientId, port: portStr } = req.params;
+        const port = parseInt(portStr, 10);
+        if (isNaN(port) || port < 1 || port > 65535) {
+            return res.status(400).json({ error: 'Invalid port' });
+        }
+
+        // The splat param gives us the path after /:port/
+        const splatPath = '/' + (req.params as Record<string, string>)['0'];
+
+        const forwardHeaders: Record<string, string> = {};
+        for (const [k, v] of Object.entries(req.headers)) {
+            if (typeof v === 'string') {
+                forwardHeaders[k] = v;
+            }
+        }
+        // Remove hop-by-hop headers
+        delete forwardHeaders['host'];
+        delete forwardHeaders['connection'];
+        delete forwardHeaders['transfer-encoding'];
+
+        try {
+            const result = await mcpTunnel.routeMcpRequest(
+                clientId,
+                port,
+                req.method,
+                splatPath + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''),
+                req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
+                forwardHeaders
+            );
+
+            // Forward response headers
+            if (result.headers) {
+                for (const [k, v] of Object.entries(result.headers)) {
+                    if (k.toLowerCase() !== 'transfer-encoding' && k.toLowerCase() !== 'connection') {
+                        res.setHeader(k, v);
+                    }
+                }
+            }
+
+            res.status(result.status).json(result.body);
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            logger.error('MCP proxy request failed', { clientId, port, path: splatPath, error: errorMsg });
+            res.status(502).json({ error: errorMsg });
+        }
+    });
 
     return { app, server, wss, taskSpawner, workspaceStore, supervisorChat, gracefulShutdown, tunnelManager };
 }
