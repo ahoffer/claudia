@@ -5,13 +5,6 @@
 import { NOTIFICATION_TASK_CLICK } from '../constants/events';
 
 /**
- * Check if running in Electron environment
- */
-export function isElectron(): boolean {
-    return typeof window !== 'undefined' && window.electronAPI !== undefined;
-}
-
-/**
  * Check if File System Access API is available
  * @see https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API
  */
@@ -27,10 +20,7 @@ export function hasFileSystemAccess(): boolean {
  * Get available directory selection method
  * Returns the best available method for selecting directories
  */
-export function getDirectorySelectionMethod(): 'electron' | 'filesystem-api' | 'none' {
-    if (isElectron()) {
-        return 'electron';
-    }
+export function getDirectorySelectionMethod(): 'filesystem-api' | 'none' {
     if (hasFileSystemAccess()) {
         return 'filesystem-api';
     }
@@ -55,7 +45,7 @@ export function getUnsupportedFeatureMessage(feature: string): string {
     const messages: Record<string, string> = {
         'directory-picker':
             'Directory selection is not available in your browser. ' +
-            'Please use the Electron app or a modern browser with File System Access API support ' +
+            'Please use a modern browser with File System Access API support ' +
             '(Chrome 86+, Edge 86+).',
         'clipboard':
             'Clipboard access is not available. Please copy the text manually.',
@@ -67,10 +57,9 @@ export function getUnsupportedFeatureMessage(feature: string): string {
  * Browser compatibility information
  */
 export interface BrowserCapabilities {
-    isElectron: boolean;
     hasFileSystemAccess: boolean;
     hasClipboardAPI: boolean;
-    directorySelectionMethod: 'electron' | 'filesystem-api' | 'none';
+    directorySelectionMethod: 'filesystem-api' | 'none';
 }
 
 /**
@@ -78,7 +67,6 @@ export interface BrowserCapabilities {
  */
 export function getBrowserCapabilities(): BrowserCapabilities {
     return {
-        isElectron: isElectron(),
         hasFileSystemAccess: hasFileSystemAccess(),
         hasClipboardAPI: hasClipboardAPI(),
         directorySelectionMethod: getDirectorySelectionMethod(),
