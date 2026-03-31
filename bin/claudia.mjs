@@ -36,7 +36,7 @@ Options:
   --help, -h    Show this help
   --version     Show version
 
-Documentation: https://github.com/extropolis/claudia
+Documentation: https://github.com/ahoffer/claudia
 `);
 }
 
@@ -153,13 +153,6 @@ function runProduction() {
 
 switch (command) {
     case 'start':
-        if (isDev) {
-            runScript('start-electron');
-        } else {
-            runProduction();
-        }
-        break;
-
     case 'web':
         if (isDev) {
             runScript('start');

@@ -209,7 +209,7 @@ if command -v claudia &>/dev/null; then
     echo "[✓] Claudia already installed"
 else
     echo "[→] Installing Claudia..."
-    npm install -g @extropolis/claudia
+    npm install -g @ahoffer/claudia
     echo "[✓] Claudia installed"
 fi
 INSTALLSCRIPT

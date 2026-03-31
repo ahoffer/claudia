@@ -114,6 +114,6 @@ What happens next:
   2. You'll get a GitHub notification to approve publishing
   3. Once approved, packages are published to npm
 
-Track it at: https://github.com/extropolis/claudia/actions
+Track it at: https://github.com/ahoffer/claudia/actions
 ──────────────────────────────────────────
 `);
