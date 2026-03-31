@@ -4,9 +4,6 @@ set -euo pipefail
 # =============================================================================
 # setup-claudia-vm.sh  (v3)
 #
-# SCRIPT 1 OF 2 — Run this FIRST.
-# Then run setup-mcp-host.sh (script 2) to install MCP servers on the Mac.
-#
 # Creates a Colima Ubuntu VM on macOS with Claude Code CLI + Claudia installed.
 # ~/projects is mounted read-write so Claudia can edit your code in-place.
 #
@@ -25,7 +22,6 @@ set -euo pipefail
 #   This script assumes a local Colima VM. To run on a remote host instead:
 #   1. Skip Colima — install Claude Code + Claudia directly on the remote host
 #   2. Mount Mac's ~/projects via SSHFS: see claudia-mount-remote.sh
-#   3. Run setup-mcp-host.sh to set up MCP servers on Mac (for shell access)
 #
 # TODO: Tailscale — install on Mac + remote host for stable private IPs
 #   that work from anywhere (brew install tailscale). Replace LAN IPs with
@@ -331,7 +327,7 @@ if [ "$MCP_OK" = false ]; then
     echo ""
     echo "[!] MCP servers are not running on this Mac."
     echo "    Claude Code in the VM won't be able to access your files or run commands."
-    echo "    Fix: run 'mcp-restart' or re-run setup-mcp-host.sh"
+    echo "    Fix: run 'mcp-restart' to restart MCP servers"
     echo ""
     read -rp "    Continue anyway? [y/N] " REPLY
     case "$REPLY" in

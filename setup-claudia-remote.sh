@@ -10,7 +10,6 @@ set -euo pipefail
 # Prerequisites:
 #   - SSH access to the remote host (password or existing key)
 #   - macOS Remote Login enabled: System Settings > General > Sharing > Remote Login
-#   - setup-mcp-host.sh has been run (MCP servers running on Mac)
 #
 # Usage:
 #   bash setup-claudia-remote.sh user@host
@@ -30,7 +29,7 @@ set -euo pipefail
 #   12. Configures Claude Code MCP servers (mac-filesystem, mac-shell)
 #   13. Creates systemd service for Claudia
 #   14. Writes ~/.config/claudia/config on this Mac
-#   15. Installs bin/claudia and bin/mcp helpers to ~/.local/bin
+#   15. Installs bin/claudia helper to ~/.local/bin
 #
 # Idempotent: safe to re-run — skips completed steps.
 # =============================================================================
@@ -66,7 +65,6 @@ if [ $# -eq 0 ]; then
     echo "Prerequisites:"
     echo "  - SSH access to the remote host (test: ssh user@host echo ok)"
     echo "  - macOS Remote Login enabled (System Settings > General > Sharing > Remote Login)"
-    echo "  - setup-mcp-host.sh already run on this Mac"
     exit 1
 fi
 
@@ -630,14 +628,6 @@ else
     warn "bin/claudia not found in $SCRIPT_DIR/bin — skipping"
 fi
 
-if [ -f "$SCRIPT_DIR/bin/mcp" ]; then
-    cp "$SCRIPT_DIR/bin/mcp" "$BINDIR/mcp"
-    chmod +x "$BINDIR/mcp"
-    ok "Installed: mcp"
-else
-    warn "bin/mcp not found in $SCRIPT_DIR/bin — skipping"
-fi
-
 if ! echo "$PATH" | tr ':' '\n' | grep -qx "$BINDIR"; then
     warn "~/.local/bin is not in your PATH."
     warn "Add to your shell rc: export PATH=\"\$HOME/.local/bin:\$PATH\""
@@ -656,24 +646,13 @@ echo "  Remote host : $REMOTE_HOST"
 echo "  Mac IP      : $HOST_IP"
 echo "  Projects    : $MOUNT_PATH (SSHFS automount)"
 echo ""
-echo "  NEXT STEP — run this to start MCP servers on Mac and configure"
-echo "  Claude Code on the remote to use them:"
-echo ""
-echo "    bash setup-mcp-host.sh --remote $REMOTE_HOST"
-echo ""
-echo "  Daily workflow (after MCP setup):"
+echo "  Daily workflow:"
 echo "    claudia start     # starts Claudia, prints URL"
 echo "    claudia stop      # stop Claudia"
 echo "    claudia logs      # tail Claudia logs"
 echo "    claudia ssh       # shell into $REMOTE_HOST"
 echo "    claudia trust /Users/$MAC_USER/projects/myapp"
 echo ""
-echo "  MCP servers (on this Mac):"
-echo "    mcp status        # check ports"
-echo "    mcp restart       # restart if needed"
-echo "    mcp logs fs       # tail filesystem log"
-echo ""
 echo "  If Mac IP changes:"
-echo "    1. Update MAC_IP in $CLAUDIA_CONFIG_DIR/config"
-echo "    2. Re-run: bash setup-mcp-host.sh --remote $REMOTE_HOST"
+echo "    Update MAC_IP in $CLAUDIA_CONFIG_DIR/config"
 echo ""

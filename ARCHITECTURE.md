@@ -310,8 +310,6 @@ WSMessageType: 40+ types for task lifecycle, workspaces, chat, supervisor,
 
 The server and client are **separate machines**. The server always runs on AMD64 Ubuntu (bare metal or VM). The client is any machine running a web browser — the browser is purely UI and hosts no server-side logic.
 
-MCP tool calls travel through a **client daemon** (`claudia-client`) that runs on the client machine. The daemon opens a persistent outbound WSS tunnel to the server and forwards MCP requests to local MCP servers. This means there is no direct inbound connection from server to client and no dependency on the client's IP address.
-
 ```
 CLIENT MACHINE  (Mac, Linux, Windows)
   ┌──────────────────────────────────────────────────────────────────┐
@@ -319,15 +317,6 @@ CLIENT MACHINE  (Mac, Linux, Windows)
   │  WorkspacePanel  TerminalView  SupervisorChat  Settings           │
   │                       │ useWebSocket (UI events)                  │
   └───────────────────────┼──────────────────────────────────────────┘
-                          │ outbound WSS :4443
-  ┌───────────────────────┼──────────────────────────────────────────┐
-  │  claudia-client daemon (outbound WSS :4443 — MCP tunnel)          │
-  │    forwards MCP calls to:                                         │
-  │      localhost:8100  (filesystem-mcp)                             │
-  │      localhost:8101  (shell-mcp)                                  │
-  │    returns results back through the tunnel                        │
-  │    managed by launchd (Mac) or systemd (Linux)                    │
-  └───────────────────────┬──────────────────────────────────────────┘
                           │ outbound WSS :4443
                           ▼
 SERVER  —  AMD64 Ubuntu (VM or bare metal)
@@ -346,20 +335,13 @@ SERVER  —  AMD64 Ubuntu (VM or bare metal)
   │         │                                                          │
   │  ┌──────┴──────────────────────────────────────────────────────┐  │
   │  │  Claude Code / OpenCode CLI instances (PTY)                  │  │
-  │  │  MCP calls → local proxy endpoint → tunnel → claudia-client  │  │
   │  └─────────────────────────────────────────────────────────────┘  │
   └───────────────────────────────────────────────────────────────────┘
 ```
 
 ### Client–Server Notes
 
-- The browser is UI-only. It does not relay MCP calls.
-- `claudia-client` opens an outbound WSS connection (port 443/4443) to the server — no inbound ports required on the client. Works through any NAT or firewall.
-- The server receives MCP tool call requests from Claude Code via a local proxy endpoint and pushes them through the persistent tunnel to the waiting `claudia-client` daemon.
-- `claudia-client` forwards each request to the appropriate local MCP server (`localhost:8100` or `localhost:8101`) and returns the result through the tunnel.
-- There is no `CLIENT_IP` or `MAC_IP` configuration. Direct IP connections from server to client are gone.
-- `claudia-client` reconnects automatically on disconnect.
-- The `bin/mcp` helper manages the `claudia-client` daemon and local MCP services on the client.
+- The browser is UI-only.
 - The `bin/claudia` helper manages the Claudia server process on the server.
 
 ---
@@ -565,7 +547,6 @@ Browser (any device)
 - **Bearer token auth** — a shared secret in `config.json`, checked by Express middleware. Simple and sufficient for single-user/team deployments.
 - **Environment parity** — VM and remote host run identically. The only difference is the nginx cert and the DNS/IP used to reach it.
 - **Co-location requirement** — the Claude Code CLI (`claude`) must be installed on the same machine as the backend. Remote deployments are "bring your own host with claude installed."
-- **Client daemon required for MCP** — when the server is remote, the `claudia-client` daemon must be installed and running on the client machine. It establishes the outbound WSS tunnel through which all MCP tool calls travel. Install it via the `bin/mcp` helper on the client.
 
 ### TLS (Self-Signed Certs)
 
