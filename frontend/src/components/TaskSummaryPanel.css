@@ -1,0 +1,206 @@
+.task-summary-panel {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid #3a3a5a;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s ease-out;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.summary-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #3a3a5a;
+    flex-shrink: 0;
+}
+
+.bot-icon {
+    color: #7c3aed;
+    width: 18px;
+    height: 18px;
+}
+
+.summary-title {
+    font-weight: 600;
+    color: #e5e5e5;
+    flex: 1;
+}
+
+.status-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.status-icon.completed {
+    color: #22c55e;
+}
+
+.status-icon.error {
+    color: #ef4444;
+}
+
+.status-icon.permission {
+    color: #f59e0b;
+}
+
+.status-icon.input {
+    color: #3b82f6;
+}
+
+.refresh-btn,
+.dismiss-btn {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.refresh-btn:hover,
+.dismiss-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.dismiss-btn {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.summary-content {
+    margin-bottom: 12px;
+    max-height: 150px;
+    overflow-y: auto;
+    flex-shrink: 1;
+    min-height: 0;
+}
+
+/* Custom scrollbar for summary content */
+.summary-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.summary-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.summary-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.summary-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.summary-text {
+    color: #d4d4d4;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0 0 8px 0;
+}
+
+.last-action {
+    color: #888;
+    font-size: 12px;
+    margin: 0;
+}
+
+.last-action strong {
+    color: #aaa;
+}
+
+.suggested-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.action-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.action-btn.approve {
+    background: #166534;
+    border-color: #22c55e;
+    color: #fff;
+}
+
+.action-btn.approve:hover {
+    background: #15803d;
+}
+
+.action-btn.reject {
+    background: #991b1b;
+    border-color: #ef4444;
+    color: #fff;
+}
+
+.action-btn.reject:hover {
+    background: #b91c1c;
+}
+
+.action-btn.command {
+    background: #1e3a8a;
+    border-color: #3b82f6;
+    color: #fff;
+}
+
+.action-btn.command:hover {
+    background: #1d4ed8;
+}
+
+.action-btn.custom {
+    background: #374151;
+    border-color: #6b7280;
+    color: #fff;
+}
+
+.action-btn.custom:hover {
+    background: #4b5563;
+}
+
+/* Default button style for 'input' type */
+.action-btn:not(.approve):not(.reject):not(.command):not(.custom) {
+    background: #4c1d95;
+    border-color: #7c3aed;
+    color: #fff;
+}
+
+.action-btn:not(.approve):not(.reject):not(.command):not(.custom):hover {
+    background: #5b21b6;
+}

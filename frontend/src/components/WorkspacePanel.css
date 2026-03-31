@@ -1,0 +1,1774 @@
+/* Workspace Panel Styles */
+.workspace-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0; /* Allow panel to shrink in flex layout so workspace-panel-content can scroll */
+    background: var(--bg-secondary);
+}
+
+.workspace-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+    z-index: 2; /* Stay above scrolling content and dropdowns */
+}
+
+.workspace-panel-header h2 {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.add-workspace-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.add-workspace-button:hover {
+    background: var(--accent-primary);
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+}
+
+.workspace-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 8px;
+    position: relative;
+    z-index: 1; /* Establish stacking context so scrollbar stays on top of children */
+    /* CSS Grid with auto-fit columns for multi-column workspace layout.
+       auto-fit collapses empty tracks so workspace cards expand to fill width.
+       A second column only appears once the sidebar exceeds ~960px. */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+    gap: 8px;
+    align-content: start; /* Pack rows to the top instead of stretching */
+}
+
+/* Empty State */
+.workspace-panel .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    grid-column: 1 / -1; /* Span all grid columns */
+}
+
+.create-first-workspace-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: 1px dashed var(--accent-secondary);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent-secondary);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.create-first-workspace-btn:hover {
+    background: rgba(0, 212, 255, 0.1);
+    border-style: solid;
+}
+
+/* Workspace Section - Card style */
+.workspace-section {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    align-self: start; /* Don't stretch to fill grid row height */
+}
+
+.workspace-section:hover {
+    border-color: rgba(139, 148, 158, 0.35);
+}
+
+.workspace-section.dragging {
+    opacity: 0.7;
+}
+
+.workspace-section.drop-target {
+    border-color: var(--accent-secondary);
+    box-shadow: 0 0 0 1px var(--accent-secondary), 0 0 12px rgba(0, 212, 255, 0.15);
+    background: rgba(0, 212, 255, 0.03);
+}
+
+.workspace-section.active {
+    border-color: var(--accent-secondary);
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.3), 0 2px 8px rgba(0, 212, 255, 0.1);
+    background: var(--bg-secondary);
+}
+
+.workspace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border-bottom: none;
+    transition: background 0.15s ease;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-radius: 9px; /* Match parent minus 1px for border */
+}
+
+/* When expanded, header only rounds top corners and content rounds bottom */
+.workspace-header + .workspace-content {
+    border-top: 1px solid var(--border-color);
+}
+
+.workspace-section.expanded .workspace-header {
+    border-radius: 9px 9px 0 0;
+}
+
+.workspace-drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: var(--text-muted);
+    padding: 2px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.workspace-drag-handle:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.workspace-drag-handle:active {
+    cursor: grabbing;
+}
+
+.workspace-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    cursor: pointer;
+}
+
+.workspace-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.workspace-header:hover {
+    background: rgba(33, 38, 45, 0.85);
+}
+
+.workspace-icon {
+    color: var(--accent-secondary);
+    flex-shrink: 0;
+}
+
+.workspace-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.workspace-rename-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.workspace-header-left:hover .workspace-rename-button {
+    opacity: 1;
+}
+
+.workspace-rename-button:hover {
+    background: rgba(0, 212, 255, 0.15);
+    color: var(--accent-secondary);
+}
+
+.workspace-count {
+    font-size: 0.6875rem;
+    font-weight: 400;
+    padding: 2px 6px;
+    background: var(--bg-primary);
+    border-radius: 10px;
+    color: var(--text-muted);
+}
+
+.workspace-task-count {
+    font-size: 0.6875rem;
+    font-weight: 400;
+    padding: 2px 6px;
+    background: rgba(0, 212, 255, 0.15);
+    border-radius: 10px;
+    color: var(--accent-secondary);
+}
+
+.workspace-branch-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: rgba(139, 148, 158, 0.1);
+    color: var(--text-muted);
+    font-size: 0.625rem;
+    font-weight: 400;
+    flex-shrink: 0;
+    max-width: 140px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.workspace-branch-label:hover {
+    background: rgba(139, 148, 158, 0.2);
+    color: var(--text-secondary);
+}
+
+.workspace-branch-label.copied {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--accent-green);
+}
+
+.workspace-branch-label .branch-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.workspace-action-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 1;
+    transition: all 0.15s ease;
+}
+
+.workspace-action-button:hover {
+    background: var(--bg-primary);
+    color: var(--accent-secondary);
+}
+
+.workspace-action-button.add:hover {
+    background: rgba(0, 212, 255, 0.15);
+    color: var(--accent-secondary);
+}
+
+.workspace-action-button.delete:hover {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--accent-red);
+}
+
+.workspace-action-button.menu.active {
+    background: var(--bg-tertiary);
+    color: var(--accent-secondary);
+}
+
+/* Workspace Menu Container */
+.workspace-menu-container {
+    position: relative;
+}
+
+/* Workspace Dropdown Menu */
+.workspace-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    min-width: 180px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    overflow: visible;
+    animation: dropdownFadeIn 0.15s ease;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.workspace-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    text-align: left;
+}
+
+.workspace-dropdown-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.workspace-dropdown-item.reset {
+    color: var(--accent-orange, #e3b341);
+}
+
+.workspace-dropdown-item.reset:hover {
+    background: rgba(227, 179, 65, 0.15);
+}
+
+.workspace-dropdown-item.delete {
+    color: var(--accent-red);
+}
+
+.workspace-dropdown-item.delete:hover {
+    background: rgba(248, 81, 73, 0.15);
+}
+
+.workspace-dropdown-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 0;
+}
+
+.workspace-action-button.target {
+    opacity: 1;
+}
+
+.workspace-action-button.target.active {
+    color: var(--accent-secondary);
+    background: rgba(0, 212, 255, 0.15);
+}
+
+.workspace-action-button.target:hover {
+    background: rgba(0, 212, 255, 0.15);
+    color: var(--accent-secondary);
+}
+
+.workspace-content {
+    background: var(--bg-primary);
+    border-top: none;
+    border-radius: 0 0 9px 9px;
+    overflow: hidden;
+}
+
+.empty-projects {
+    padding: 12px 16px;
+}
+
+.add-project-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px dashed var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.8125rem;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.add-project-hint:hover {
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+    background: rgba(0, 212, 255, 0.05);
+}
+
+/* Project Section */
+.project-section {
+    margin: 2px 0;
+}
+
+.project-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.project-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.project-icon {
+    color: var(--accent-yellow);
+    flex-shrink: 0;
+}
+
+.project-header .project-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-task-count {
+    font-size: 0.625rem;
+    padding: 1px 5px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    color: var(--text-muted);
+}
+
+.project-action-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.15s ease;
+}
+
+.project-header:hover .project-action-button {
+    opacity: 1;
+}
+
+.project-action-button:hover {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--accent-red);
+}
+
+.project-tasks {
+    padding-left: 12px;
+}
+
+/* Task List Container with resize handle */
+.task-list-container {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Task List - Scrollable with max 5 items visible (default) */
+.task-list {
+    max-height: calc(5 * 32px); /* ~32px per task item (padding + line height) */
+    overflow-y: auto;
+    transition: max-height 0.05s ease;
+}
+
+.task-list.resizing {
+    transition: none;
+    user-select: none;
+}
+
+/* Task list resize handle */
+.task-list-resize-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 12px;
+    cursor: ns-resize;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    color: var(--text-muted);
+    opacity: 0.5;
+    transition: all 0.15s ease;
+}
+
+.task-list-resize-handle:hover {
+    opacity: 1;
+    background: var(--bg-tertiary);
+    color: var(--accent-secondary);
+}
+
+.task-list-resize-handle:active {
+    opacity: 1;
+    background: var(--accent-primary);
+    color: var(--accent-secondary);
+}
+
+.empty-tasks {
+    padding: 10px 14px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Task Item within workspace */
+.task-item-container {
+    /* Container for task and its children */
+}
+
+.workspace-panel .task-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    cursor: grab;
+    transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    border-left: 2px solid transparent;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.workspace-panel .task-item:active {
+    cursor: grabbing;
+}
+
+/* Task drag handle */
+.workspace-panel .task-item .task-drag-handle {
+    cursor: grab;
+    color: var(--text-muted);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    padding: 2px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.workspace-panel .task-item:hover .task-drag-handle {
+    opacity: 0.6;
+}
+
+.workspace-panel .task-item .task-drag-handle:hover {
+    opacity: 1;
+    color: var(--text-secondary);
+}
+
+.workspace-panel .task-item .task-drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Task being dragged */
+.workspace-panel .task-item.dragging {
+    opacity: 0.5;
+    background: var(--bg-tertiary);
+    border-left-color: var(--accent-secondary);
+}
+
+/* Task drop target indicator */
+.workspace-panel .task-item.drop-target:not(.dragging) {
+    background: var(--bg-tertiary);
+    box-shadow: 0 -2px 0 0 var(--accent-secondary);
+}
+
+.workspace-panel .task-item .task-prompt {
+    flex: 1;
+    line-height: 1.3;
+    word-break: break-word;
+    font-weight: 400;
+    color: var(--text-secondary);
+    /* Limit to 1 line max */
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Scheduled task (cron) badge */
+.workspace-panel .task-item .task-cron-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 4px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(0, 212, 255, 0.1);
+    color: var(--accent-secondary);
+    font-size: 0.625rem;
+    flex-shrink: 0;
+    margin-left: 4px;
+    opacity: 0.8;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.workspace-panel .task-item .task-cron-badge:hover {
+    opacity: 1;
+    background: rgba(0, 212, 255, 0.18);
+}
+
+.workspace-panel .task-item .task-cron-badge .task-cron-count {
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.workspace-panel .task-item .task-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* Time-ago indicator - subtle, hidden on hover to reveal action buttons */
+.workspace-panel .task-item .task-time-ago {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+
+.workspace-panel .task-item .task-time-ago.busy {
+    color: var(--accent-secondary);
+    opacity: 0.5;
+}
+
+.workspace-panel .task-item:hover .task-time-ago {
+    display: none;
+}
+
+.workspace-panel .task-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.workspace-panel .task-item.selected {
+    background: var(--bg-tertiary);
+    border-left-color: var(--accent-secondary);
+}
+
+.workspace-panel .task-item.selected .task-prompt,
+.workspace-panel .task-item.selected .task-name {
+    color: var(--text-primary);
+}
+
+/* Subtle highlight for the last-selected task in each workspace (when not globally active) */
+.workspace-panel .task-item.last-selected {
+    border-left-color: rgba(139, 148, 158, 0.35);
+    background: rgba(139, 148, 158, 0.04);
+}
+
+.workspace-panel .task-item.last-selected .task-prompt {
+    color: var(--text-primary);
+    opacity: 0.85;
+}
+
+.workspace-panel .task-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.workspace-panel .status-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+}
+
+.workspace-panel .status-icon.spinning {
+    animation: spin 1s linear infinite;
+    color: var(--accent-secondary);
+}
+
+.workspace-panel .status-icon.starting {
+    color: var(--accent-orange, #ff9500);
+    animation: pulse-starting 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-starting {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.9); }
+}
+
+.workspace-panel .status-icon.complete {
+    color: var(--accent-green);
+}
+
+.workspace-panel .archive-checkbox-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.workspace-panel .status-icon.archive-checkbox {
+    color: var(--accent-green);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.workspace-panel .archive-checkbox-btn:hover .status-icon.archive-checkbox {
+    color: var(--text-primary);
+    transform: scale(1.1);
+}
+
+.workspace-panel .status-icon.error {
+    color: var(--accent-red);
+}
+
+.workspace-panel .status-icon.pending {
+    color: var(--text-muted);
+}
+
+.workspace-panel .status-icon.question-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--bg-primary);
+    background: var(--accent-yellow);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.workspace-panel .task-item.has-question {
+    background: rgba(255, 171, 64, 0.08);
+}
+
+.task-action-button {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 3px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.workspace-panel .task-item:hover .task-action-button {
+    display: flex;
+}
+
+.task-action-button:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.task-action-button.copied {
+    opacity: 1;
+    color: var(--accent-green);
+}
+
+.task-action-button.delete:hover {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--accent-red);
+}
+
+.task-action-button.stop {
+    color: var(--accent-red);
+}
+
+.task-action-button.stop:hover {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--accent-red);
+}
+
+.task-action-button.revert {
+    color: var(--accent-yellow);
+}
+
+.task-action-button.revert:hover {
+    background: rgba(255, 171, 64, 0.15);
+    color: var(--accent-yellow);
+}
+
+.task-action-button.rename:hover {
+    background: rgba(0, 212, 255, 0.15);
+    color: var(--accent-secondary);
+}
+
+.workspace-panel .status-icon.stopped {
+    color: var(--accent-yellow);
+}
+
+/* Add Workspace Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.add-workspace-modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    min-width: 320px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.add-workspace-modal h3 {
+    margin: 0 0 16px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.add-workspace-modal input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.add-workspace-modal input:focus {
+    border-color: var(--accent-secondary);
+}
+
+.add-workspace-modal input::placeholder {
+    color: var(--text-muted);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.modal-actions button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cancel-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.cancel-btn:hover {
+    background: var(--bg-tertiary);
+}
+
+.create-btn {
+    background: var(--accent-secondary);
+    border: none;
+    color: var(--bg-primary);
+}
+
+.create-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.create-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Task Input Form */
+.task-input-form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.task-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.task-input {
+    flex: 1;
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    outline: none;
+    transition: all 0.2s ease;
+    resize: none;
+    font-family: inherit;
+    line-height: 1.3;
+    min-height: unset;
+    height: 30px;
+    max-height: 80px;
+    overflow: hidden;
+}
+
+.task-input:focus {
+    border-color: var(--accent-secondary);
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+}
+
+.task-input::placeholder {
+    color: var(--text-muted);
+}
+
+.task-submit-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent-secondary);
+    color: var(--bg-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.task-submit-button:hover:not(:disabled) {
+    filter: brightness(1.15);
+    transform: scale(1.02);
+}
+
+.task-submit-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+}
+
+.task-submit-button:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+/* Task Input Wrapper */
+.task-input-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.task-input-wrapper .task-input {
+    width: 100%;
+}
+
+.interim-indicator {
+    position: absolute;
+    right: 12px;
+    font-size: 0.75rem;
+    color: var(--accent-secondary);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+/* Voice Button in Task Form */
+.task-voice-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.task-voice-button:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--accent-secondary);
+}
+
+.task-voice-button.listening {
+    background: var(--accent-secondary);
+    color: var(--bg-primary);
+    animation: glow 1.5s ease-in-out infinite;
+}
+
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(0, 212, 255, 0.4); }
+    50% { box-shadow: 0 0 16px rgba(0, 212, 255, 0.7); }
+}
+
+.task-voice-button .listening-spinner {
+    animation: spin 1s linear infinite;
+}
+
+.task-voice-button.unsupported {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Voice Input Container Override */
+.task-input-form .voice-input-container {
+    position: relative;
+}
+
+.task-input-form .voice-error-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background: var(--error-bg);
+    color: var(--error-text);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+/* Interrupted state - task was killed during backend reload */
+.workspace-panel .status-icon.interrupted {
+    color: var(--accent-orange, #f97316);
+}
+
+.workspace-panel .task-item.interrupted {
+    background: rgba(249, 115, 22, 0.08);
+}
+
+.workspace-panel .task-item.interrupted .task-prompt {
+    color: var(--text-secondary);
+}
+
+/* Workspace Panel Header Actions */
+.workspace-panel-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.archived-toggle-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.archived-toggle-button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+}
+
+.archived-toggle-button.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+}
+
+/* Column Selector */
+.column-selector {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 26px;
+    padding: 0 4px 0 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.column-selector:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+}
+
+.column-selector-icon {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.column-selector-select {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: 0.6875rem;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    padding: 0;
+    /* Hide default arrow and use a compact appearance */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding-right: 12px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%238b949e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0 center;
+}
+
+.column-selector-select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Archived Tasks Section */
+.archived-tasks-section {
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    position: relative;
+    z-index: 2; /* Stay above scrolling content */
+    grid-column: 1 / -1; /* Span all grid columns */
+}
+
+.archived-tasks-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.archived-tasks-count {
+    font-size: 0.6875rem;
+    font-weight: 400;
+    padding: 2px 6px;
+    background: var(--bg-primary);
+    border-radius: 10px;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.empty-archived {
+    padding: 12px 16px;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+}
+
+.archived-task-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.archived-task-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.archived-task-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.archived-task-item:active {
+    background: var(--bg-primary);
+}
+
+.archived-task-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.archived-task-prompt {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.archived-task-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.archived-task-workspace {
+    font-size: 0.6875rem;
+    color: var(--accent-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.archived-task-meta-separator {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.archived-task-date {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.archived-task-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.archived-task-item:hover .archived-task-actions {
+    opacity: 1;
+}
+
+.task-action-button.restore {
+    color: var(--accent-secondary);
+}
+
+.task-action-button.restore:hover {
+    background: rgba(0, 212, 255, 0.15);
+    color: var(--accent-secondary);
+}
+
+/* New Task Image Upload */
+.task-input-form {
+    position: relative;
+}
+
+.task-input-form.dragging {
+    background: rgba(0, 188, 212, 0.05);
+}
+
+.new-task-images {
+    display: flex;
+    gap: 6px;
+    padding: 0 0 8px 0;
+    flex-wrap: wrap;
+    overflow-y: auto;
+    max-height: 60px;
+}
+
+.new-task-image-preview {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.new-task-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.new-task-image-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    padding: 0;
+}
+
+.new-task-image-preview:hover .new-task-image-remove {
+    opacity: 1;
+}
+
+.new-task-image-remove:hover {
+    background: var(--accent-red);
+}
+
+.new-task-uploading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent-secondary);
+    font-size: 0.75rem;
+    padding: 4px 0;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.new-task-upload-error {
+    color: var(--accent-red);
+    font-size: 0.75rem;
+    padding: 4px 0;
+}
+
+.new-task-dropzone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 188, 212, 0.1);
+    border: 2px dashed var(--accent-secondary);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--accent-secondary);
+    font-size: 0.8125rem;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.task-image-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.task-image-button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+}
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+    /* Ensure workspace panel can shrink and scroll on mobile */
+    .workspace-panel {
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .workspace-panel-content {
+        padding: 6px 6px;
+        gap: 6px;
+        /* Force single column on mobile */
+        grid-template-columns: 1fr;
+    }
+
+    .workspace-section {
+        border-radius: 8px;
+    }
+
+    /* Task list max-height: account for larger 44px mobile touch targets */
+    .task-list {
+        max-height: calc(5 * 44px);
+    }
+
+    /* Larger touch targets for task items */
+    .workspace-panel .task-item {
+        padding: 10px 12px;
+        min-height: 44px;
+        font-size: 0.8125rem;
+    }
+
+    .workspace-panel .task-item .task-prompt {
+        font-size: 0.8125rem;
+    }
+
+    /* On mobile, hide time-ago since action buttons are always visible */
+    .workspace-panel .task-item .task-time-ago {
+        display: none;
+    }
+
+    /* Make action buttons always visible & larger on mobile (no hover) */
+    .task-action-button {
+        opacity: 1;
+        padding: 6px;
+    }
+
+    .workspace-panel .task-item .task-drag-handle {
+        opacity: 0.5;
+    }
+
+    /* Workspace header */
+    .workspace-header {
+        padding: 12px 14px;
+    }
+
+    .workspace-rename-button {
+        opacity: 1;
+    }
+
+    .workspace-action-button {
+        padding: 8px;
+    }
+
+    /* Task input form */
+    .task-input-form {
+        padding: 8px 10px;
+    }
+
+    .task-input {
+        font-size: 0.875rem;
+        min-height: unset;
+        height: 36px;
+        padding: 8px 12px;
+    }
+
+    .task-submit-button,
+    .task-image-button,
+    .task-voice-button {
+        width: 36px;
+        height: 36px;
+    }
+
+    /* Archived tasks */
+    .archived-task-item {
+        padding: 10px 14px;
+        min-height: 44px;
+    }
+
+    .archived-task-actions {
+        opacity: 1;
+    }
+
+    /* Workspace dropdown */
+    .workspace-dropdown-item {
+        padding: 12px 16px;
+        min-height: 44px;
+    }
+}
+
+/* Inline rename inputs */
+.task-name-input {
+    flex: 1;
+    padding: 2px 6px;
+    border: 1px solid var(--accent-secondary);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: inherit;
+    font-family: inherit;
+    line-height: 1.3;
+    outline: none;
+    min-width: 0;
+    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.15);
+}
+
+.workspace-name-input {
+    flex: 1;
+    padding: 2px 6px;
+    border: 1px solid var(--accent-secondary);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: inherit;
+    font-weight: 600;
+    font-family: inherit;
+    outline: none;
+    min-width: 0;
+    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.15);
+}
+
+/* Workspace References */
+.workspace-ref-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 6px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    background: rgba(0, 212, 255, 0.12);
+    color: var(--accent-secondary);
+    font-size: 0.6875rem;
+    cursor: default;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.workspace-ref-indicator .ref-count {
+    font-weight: 600;
+    line-height: 1;
+}
+
+.ref-tooltip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 10000;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    min-width: 120px;
+}
+
+.ref-tooltip strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-secondary);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ref-tooltip-item {
+    display: block;
+    padding: 1px 0;
+    color: var(--accent-secondary);
+}
+
+.workspace-ref-indicator:hover .ref-tooltip {
+    display: block;
+}
+
+/* Submenu styles */
+.workspace-dropdown-item.has-submenu {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: default;
+}
+
+.workspace-dropdown-item.has-submenu:hover {
+    background: var(--bg-tertiary);
+}
+
+.submenu-arrow {
+    margin-left: auto;
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+.workspace-submenu {
+    min-width: 200px;
+    max-width: 300px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    z-index: 100000;
+    overflow: hidden;
+    animation: dropdownFadeIn 0.1s ease;
+    padding: 4px 0;
+}
+
+.workspace-submenu .workspace-dropdown-item {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+}
+
+.reference-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reference-item.active {
+    color: var(--accent-secondary);
+}
+
+.reference-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.checkbox-empty {
+    display: block;
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid var(--text-secondary);
+    border-radius: 3px;
+    opacity: 0.5;
+}
+
+.reference-item.active .checkbox-empty {
+    border-color: var(--accent-secondary);
+}
+
+.reference-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.custom-ref {
+    padding-right: 8px;
+}
+
+.reference-remove-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+    flex-shrink: 0;
+}
+
+.custom-ref:hover .reference-remove-btn {
+    opacity: 1;
+}
+
+.reference-remove-btn:hover {
+    background: rgba(248, 81, 73, 0.2);
+    color: var(--accent-red);
+}
+
+.workspace-dropdown-item.disabled {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.reference-empty-hint {
+    font-style: italic;
+    color: var(--text-secondary);
+}
+

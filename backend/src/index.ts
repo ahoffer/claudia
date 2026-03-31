@@ -1,0 +1,105 @@
+import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { fileURLToPath } from 'url';
+import { createApp } from './server.js';
+import { checkClaudeCodeInstalled } from './task-spawner.js';
+import { PORTS } from '@claudia/shared';
+
+const PORT = process.env.CLAUDIA_BACKEND_PORT || PORTS.BACKEND;
+
+// Check if Claude Code CLI is installed before starting
+const claudeCheck = checkClaudeCodeInstalled();
+if (!claudeCheck.installed) {
+    console.error('\n╔══════════════════════════════════════════════════════════════════╗');
+    console.error('║  ERROR: Claude Code CLI is not installed!                        ║');
+    console.error('║                                                                  ║');
+    console.error('║  This application requires Claude Code CLI to function.         ║');
+    console.error('║  Please install it from: https://claude.ai/code                 ║');
+    console.error('╚══════════════════════════════════════════════════════════════════╝\n');
+    process.exit(1);
+}
+console.log(`Claude Code CLI detected: ${claudeCheck.version}`);
+
+// Auto-install the /learn command to ~/.claude/commands/ so it's available in all Claude Code sessions
+function installLearnCommand() {
+    try {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        const sourceFile = path.join(__dirname, 'commands', 'learn.md');
+        const commandsDir = path.join(os.homedir(), '.claude', 'commands');
+        const destFile = path.join(commandsDir, 'learn.md');
+
+        if (!fs.existsSync(sourceFile)) {
+            console.warn('[LearnCommand] Source file not found:', sourceFile);
+            return;
+        }
+
+        // Create ~/.claude/commands/ if it doesn't exist
+        fs.mkdirSync(commandsDir, { recursive: true });
+
+        const sourceContent = fs.readFileSync(sourceFile, 'utf-8');
+
+        // Only update if content has changed (avoid unnecessary writes)
+        if (fs.existsSync(destFile)) {
+            const destContent = fs.readFileSync(destFile, 'utf-8');
+            if (destContent === sourceContent) {
+                console.log('[LearnCommand] /learn command already up-to-date at', destFile);
+                return;
+            }
+        }
+
+        fs.writeFileSync(destFile, sourceContent, 'utf-8');
+        console.log('[LearnCommand] Installed /learn command to', destFile);
+    } catch (err) {
+        console.error('[LearnCommand] Failed to install /learn command:', err);
+    }
+}
+
+installLearnCommand();
+
+
+const { server, taskSpawner, gracefulShutdown } = await createApp();
+
+console.log(`[Index] Starting server on port ${PORT}...`);
+let httpServer: ReturnType<typeof server.listen> | undefined;
+try {
+    httpServer = server.listen(PORT, () => {
+        console.log(`Claude Code UI running on http://localhost:${PORT}`);
+        console.log(`WebSocket available at ws://localhost:${PORT}`);
+        console.log(`[Index] Server successfully listening`);
+    });
+
+    httpServer.on('error', (err: any) => {
+        console.error('[Index] Server failed to start:', err);
+        if (err.code === 'EADDRINUSE') {
+            console.error(`Port ${PORT} is already in use`);
+        }
+    });
+} catch (err) {
+    console.error('[Index] Exception during server.listen:', err);
+}
+
+// Graceful shutdown - use the server's gracefulShutdown which handles all cleanup
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Last-resort synchronous save when process is exiting.
+// On Windows, tsx watch may use TerminateProcess which skips SIGTERM/SIGINT handlers,
+// but the 'exit' event still fires for process.exit() calls.
+process.on('exit', () => {
+    try {
+        taskSpawner.saveNow();
+    } catch (_e) {
+        // Best effort — process is exiting
+    }
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('[Index] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[Index] Unhandled Rejection at:', promise, 'reason:', reason);
+});
