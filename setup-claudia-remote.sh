@@ -456,12 +456,6 @@ else
     npm install -g @extropolis/claudia
     echo "[✓] Claudia installed"
 fi
-
-# --- Playwright Chromium (for MCP browser tools) ---
-echo "[→] Ensuring Playwright Chromium is installed..."
-npx playwright install-deps chromium 2>/dev/null || true
-npx playwright install chromium
-echo "[✓] Playwright Chromium ready"
 INSTALLSCRIPT
 
 ok "All software installed on remote"
