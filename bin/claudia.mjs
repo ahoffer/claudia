@@ -36,7 +36,7 @@ Options:
   --help, -h    Show this help
   --version     Show version
 
-Documentation: https://github.com/extropolis/claudia
+Documentation: https://github.com/ahoffer/claudia
 `);
 }
 
