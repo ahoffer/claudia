@@ -7,6 +7,7 @@ dist-electron/
 build/
 release/
 *.tsbuildinfo
+*.tgz
 electron/*.js
 electron/*.d.ts
 
@@ -27,6 +28,7 @@ server_log_new.txt
 
 # Test artifacts
 *.png
+!assets/icon.png
 test-*.txt
 clean_output.txt
 
@@ -38,9 +40,12 @@ hello_verify.txt
 # Local config
 .env
 .env.local
+start.ps1
+.claude/settings.local.json
 
 # Runtime data (persisted state, machine-specific)
 backend/tasks.json
+backend/scheduled-tasks.json
 backend/config.json
 backend/workspace-config.json
 backend/chat-history.json
@@ -52,7 +57,6 @@ backend/learnings.json
 
 # Local machine config
 backend/.mcp.json
-.claude/settings.local.json
 backend/.claude/settings.local.json
 .claude/generated-skills/
 .claude/skill-meta/
@@ -60,6 +64,9 @@ backend/.claude/settings.local.json
 
 # Playwright snapshots and screenshots
 .playwright-mcp/
+
+# Vite cache
+vite
 
 # Specific one-off junk files
 fib.js
