@@ -657,7 +657,6 @@ export async function createApp(basePath?: string) {
     }
 
     // ===== Embedded Shell Terminal Management =====
-    const isWindows = process.platform === 'win32';
     const shellProcesses: Map<string, IPty> = new Map(); // workspaceId → PTY
 
     function createShellTerminal(workspaceId: string, ws: WebSocket, cols?: number, rows?: number): void {
@@ -671,9 +670,7 @@ export async function createApp(basePath?: string) {
             return;
         }
 
-        const shellCmd = isWindows
-            ? 'powershell.exe'
-            : (process.env.SHELL || '/bin/bash');
+        const shellCmd = process.env.SHELL || '/bin/bash';
 
         logger.info('Creating embedded shell', { workspaceId, shell: shellCmd, cols, rows });
 
@@ -1394,58 +1391,28 @@ export async function createApp(basePath?: string) {
                     case 'workspace:browseFolder': {
                         // Open native OS folder picker dialog and return selected path
                         const { execSync } = await import('child_process');
-                        const platform = process.platform;
                         let selectedPath: string | null = null;
                         const lastBrowsed = workspaceStore.getLastBrowsedPath();
 
                         try {
-                            if (platform === 'darwin') {
-                                let osascriptCmd = `osascript -e 'POSIX path of (choose folder with prompt "Select a workspace folder"`;
-                                if (lastBrowsed) {
-                                    osascriptCmd += ` default location POSIX file "${lastBrowsed}"`;
-                                }
-                                osascriptCmd += `)'`;
+                            // Linux - try zenity first, then kdialog
+                            const zenityFilename = lastBrowsed ? ` --filename="${lastBrowsed}/"` : '';
+                            try {
                                 const result = execSync(
-                                    osascriptCmd,
-                                    { encoding: 'utf-8', timeout: 120000 }
-                                ).trim();
-                                if (result) selectedPath = result.replace(/\/$/, ''); // remove trailing slash
-                            } else if (platform === 'win32') {
-                                const initialDirLine = lastBrowsed ? `$dialog.SelectedPath = "${lastBrowsed}"` : '';
-                                const psScript = `
-Add-Type -AssemblyName System.Windows.Forms
-$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.Description = "Select a workspace folder"
-$dialog.ShowNewFolderButton = $true
-${initialDirLine}
-if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-    Write-Output $dialog.SelectedPath
-}`;
-                                const result = execSync(
-                                    `powershell -NoProfile -Command "${psScript.replace(/\n/g, '; ')}"`,
+                                    `zenity --file-selection --directory --title="Select a workspace folder"${zenityFilename} 2>/dev/null`,
                                     { encoding: 'utf-8', timeout: 120000 }
                                 ).trim();
                                 if (result) selectedPath = result;
-                            } else {
-                                // Linux - try zenity first, then kdialog
-                                const zenityFilename = lastBrowsed ? ` --filename="${lastBrowsed}/"` : '';
+                            } catch {
+                                const kdialogStart = lastBrowsed || '~';
                                 try {
                                     const result = execSync(
-                                        `zenity --file-selection --directory --title="Select a workspace folder"${zenityFilename} 2>/dev/null`,
+                                        `kdialog --getexistingdirectory "${kdialogStart}" --title "Select a workspace folder" 2>/dev/null`,
                                         { encoding: 'utf-8', timeout: 120000 }
                                     ).trim();
                                     if (result) selectedPath = result;
                                 } catch {
-                                    const kdialogStart = lastBrowsed || '~';
-                                    try {
-                                        const result = execSync(
-                                            `kdialog --getexistingdirectory "${kdialogStart}" --title "Select a workspace folder" 2>/dev/null`,
-                                            { encoding: 'utf-8', timeout: 120000 }
-                                        ).trim();
-                                        if (result) selectedPath = result;
-                                    } catch {
-                                        logger.warn('No folder dialog available (install zenity or kdialog)');
-                                    }
+                                    logger.warn('No folder dialog available (install zenity or kdialog)');
                                 }
                             }
                         } catch (err: any) {
@@ -1472,15 +1439,7 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
                         const { workspaceId } = payload as { workspaceId?: string };
                         if (!workspaceId) break;
                         const { exec } = await import('child_process');
-                        const platform = process.platform;
-                        let command: string;
-                        if (platform === 'darwin') {
-                            command = `open "${workspaceId}"`;
-                        } else if (platform === 'win32') {
-                            command = `explorer "${workspaceId}"`;
-                        } else {
-                            command = `xdg-open "${workspaceId}"`;
-                        }
+                        const command = `xdg-open "${workspaceId}"`;
                         exec(command, (error) => {
                             if (error) {
                                 logger.error('Failed to open folder', { workspaceId, error: error.message });
@@ -1494,17 +1453,8 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
                         const { workspaceId } = payload as { workspaceId?: string };
                         if (!workspaceId) break;
                         const { exec } = await import('child_process');
-                        const platform = process.platform;
-                        let command: string;
-                        if (platform === 'darwin') {
-                            // Use AppleScript to open Terminal.app at the specified directory
-                            command = `osascript -e 'tell application "Terminal" to do script "cd \\"${workspaceId}\\""' -e 'tell application "Terminal" to activate'`;
-                        } else if (platform === 'win32') {
-                            command = `start cmd /K "cd /d "${workspaceId}""`;
-                        } else {
-                            // Try common Linux terminal emulators in order
-                            command = `gnome-terminal -- bash -c "cd \\"${workspaceId}\\"; exec bash" 2>/dev/null || xterm -e "cd \\"${workspaceId}\\"; exec bash" 2>/dev/null || x-terminal-emulator --working-directory="${workspaceId}" 2>/dev/null`;
-                        }
+                        // Try common Linux terminal emulators in order
+                        const command = `gnome-terminal -- bash -c "cd \\"${workspaceId}\\"; exec bash" 2>/dev/null || xterm -e "cd \\"${workspaceId}\\"; exec bash" 2>/dev/null || x-terminal-emulator --working-directory="${workspaceId}" 2>/dev/null`;
                         exec(command, (error) => {
                             if (error) {
                                 logger.error('Failed to open terminal', { workspaceId, error: error.message });
@@ -1973,8 +1923,6 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
     // Native folder picker dialog
     app.post('/api/browse-folder', async (_req, res) => {
         try {
-            const platform = process.platform;
-
             // Helper: run a picker command and resolve with the selected path or null
             const runPicker = (cmd: string, args: string[]): Promise<string | null> =>
                 new Promise((resolve) => {
@@ -1988,21 +1936,14 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
                     child.on('error', () => resolve(null));
                 });
 
+            // Linux - try zenity first, then kdialog
             let selectedPath: string | null = null;
-
-            if (platform === 'darwin') {
-                selectedPath = await runPicker('osascript', ['-e', 'POSIX path of (choose folder with prompt "Select reference folder")']);
-            } else if (platform === 'win32') {
-                selectedPath = await runPicker('powershell', ['-Command', `Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'Select reference folder'; if ($f.ShowDialog() -eq 'OK') { $f.SelectedPath } else { '' }`]);
-            } else {
-                // Linux - try zenity first, then kdialog
-                selectedPath = await runPicker('zenity', ['--file-selection', '--directory', '--title=Select reference folder']);
-                if (selectedPath === null) {
-                    selectedPath = await runPicker('kdialog', ['--getexistingdirectory', '.', '--title', 'Select reference folder']);
-                }
-                if (selectedPath === null) {
-                    console.warn('[browse-folder] No folder dialog available on Linux (install zenity or kdialog)');
-                }
+            selectedPath = await runPicker('zenity', ['--file-selection', '--directory', '--title=Select reference folder']);
+            if (selectedPath === null) {
+                selectedPath = await runPicker('kdialog', ['--getexistingdirectory', '.', '--title', 'Select reference folder']);
+            }
+            if (selectedPath === null) {
+                console.warn('[browse-folder] No folder dialog available on Linux (install zenity or kdialog)');
             }
 
             if (selectedPath) {

@@ -240,6 +240,10 @@ The **Supervisor Chat** (right panel) is an AI assistant with tool-calling capab
 
 Think of it as a manager that can coordinate multiple Claude Code agents working in parallel.
 
+### Remote Access and MCP Tools
+
+When the Claudia server is running on a remote machine, MCP tool calls (filesystem access, shell execution) are handled by the **`claudia-client` daemon** on your local machine — not the browser. The daemon opens a persistent outbound WSS connection to the server, so no inbound ports are needed on the client. Install and manage it with the `bin/mcp` helper on the client machine before connecting remotely.
+
 ### Claudia MCP Server
 
 The **Claudia MCP** (Model Context Protocol) server lets Claude Code agents running inside Claudia communicate back with the orchestrator. When enabled, each task gets its own MCP server instance injected automatically — giving Claude Code the ability to spawn sibling tasks, check their progress, and send them input.

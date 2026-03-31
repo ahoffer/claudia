@@ -12,26 +12,6 @@ FRONTEND_PORT=5173
 OPENCODE_PORT=4097
 # ============================================
 
-# Lock file to prevent duplicate starts
-LOCK_FILE="/tmp/claudia-server.lock"
-
-if [ -f "$LOCK_FILE" ]; then
-    LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
-    if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
-        echo "❌ Claudia is already running (PID: $LOCK_PID)."
-        echo "   Stop it first or remove the lock file: rm $LOCK_FILE"
-        exit 1
-    fi
-    # Remove stale lock file
-    rm -f "$LOCK_FILE"
-fi
-
-# Create lock file with our PID
-echo $$ > "$LOCK_FILE"
-
-# Clean up lock file on exit
-trap "rm -f '$LOCK_FILE'" EXIT INT TERM
-
 # Ensure OpenCode CLI is in PATH
 export PATH=$HOME/.opencode/bin:$PATH
 
