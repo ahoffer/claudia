@@ -97,10 +97,7 @@ export function ShellTerminalView({ workspaceId, workspaceName, wsRef, onClose, 
                 // Prevent the browser's native paste event from also firing
                 // (which would cause xterm to paste a second time)
                 event.preventDefault();
-                if (window.electronAPI?.readClipboard) {
-                    const text = window.electronAPI.readClipboard();
-                    if (text) term.paste(text);
-                } else if (navigator.clipboard?.readText) {
+                if (navigator.clipboard?.readText) {
                     navigator.clipboard.readText().then((text) => {
                         if (text) term.paste(text);
                     }).catch((err) => {
@@ -116,9 +113,7 @@ export function ShellTerminalView({ workspaceId, workspaceName, wsRef, onClose, 
             if (isCopy) {
                 const selection = term.getSelection();
                 if (selection) {
-                    if (window.electronAPI?.writeClipboard) {
-                        window.electronAPI.writeClipboard(selection);
-                    } else if (navigator.clipboard?.writeText) {
+                    if (navigator.clipboard?.writeText) {
                         navigator.clipboard.writeText(selection).catch((err) => {
                             console.warn('[ShellTerminalView] Clipboard copy failed:', err);
                         });
@@ -161,19 +156,14 @@ export function ShellTerminalView({ workspaceId, workspaceName, wsRef, onClose, 
             e.preventDefault();
             const selection = term.getSelection();
             if (selection) {
-                if (window.electronAPI?.writeClipboard) {
-                    window.electronAPI.writeClipboard(selection);
-                } else if (navigator.clipboard?.writeText) {
+                if (navigator.clipboard?.writeText) {
                     navigator.clipboard.writeText(selection).catch((err) => {
                         console.warn('[ShellTerminalView] Right-click copy failed:', err);
                     });
                 }
                 term.clearSelection();
             } else {
-                if (window.electronAPI?.readClipboard) {
-                    const text = window.electronAPI.readClipboard();
-                    if (text) term.paste(text);
-                } else if (navigator.clipboard?.readText) {
+                if (navigator.clipboard?.readText) {
                     navigator.clipboard.readText().then((text) => {
                         if (text) term.paste(text);
                     }).catch((err) => {

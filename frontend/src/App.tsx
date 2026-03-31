@@ -13,7 +13,7 @@ import { FileExplorer } from './components/FileExplorer';
 import { ShellTerminalView } from './components/ShellTerminalView';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useTaskStore } from './stores/taskStore';
-import { Terminal, Settings, MessageCircle, X, RefreshCw, RotateCcw, WifiOff, Activity, AlertTriangle, Smartphone, ArrowLeft, Minimize2, Mic, Bell, BellOff } from 'lucide-react';
+import { Terminal, Settings, MessageCircle, X, RefreshCw, RotateCcw, WifiOff, Activity, AlertTriangle, Smartphone, ArrowLeft, Mic, Bell, BellOff } from 'lucide-react';
 import { getApiBaseUrl } from './config/api-config';
 import { isSoundEnabled, setSoundEnabled } from './utils/browserCapabilities';
 import { TERMINAL_SCROLL_TO_BOTTOM, TASK_INPUT_FOCUS } from './constants/events';
@@ -70,14 +70,6 @@ function App() {
     const { selectedTaskId, tasks, workspaces, setShowProjectPicker, chatMessages, chatTyping, isConnected, isServerReloading, isOffline, supervisorEnabled, aiCoreConfigured, showSystemStats, errorNotification, clearErrorNotification } = useTaskStore();
     const selectedTask = selectedTaskId ? tasks.get(selectedTaskId) : null;
     const selectedWorkspace = selectedTask ? workspaces.find(w => w.id === selectedTask.workspaceId) : undefined;
-
-    // Track fullscreen state (Electron only)
-    const [isFullscreen, setIsFullscreen] = useState(false);
-    useEffect(() => {
-        const api = window.electronAPI;
-        if (!api?.onFullscreenChanged) return;
-        return api.onFullscreenChanged(setIsFullscreen);
-    }, []);
 
     // On mobile, track whether the user is viewing the terminal (screen 2)
     const [mobileShowTerminal, setMobileShowTerminal] = useState(false);
@@ -422,16 +414,6 @@ function App() {
                     <span className="app-version">v{__APP_VERSION__}</span>
                 </div>
                 <div className="header-controls">
-                    {isFullscreen && (
-                        <button
-                            className="exit-fullscreen-button"
-                            onClick={() => window.electronAPI?.exitFullscreen()}
-                            title="Exit Fullscreen (F11)"
-                        >
-                            <Minimize2 size={16} />
-                            <span className="btn-label">Exit Fullscreen</span>
-                        </button>
-                    )}
                     {/* Running Process Counter */}
                     <div className="running-tasks-indicator" title={taskTooltip}>
                         <Activity size={18} className={busyCount > 0 ? 'active-pulse' : ''} />

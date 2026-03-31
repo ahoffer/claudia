@@ -1,5 +1,5 @@
 {
-  "name": "@extropolis/claudia",
+  "name": "@ahoffer/claudia",
   "productName": "Claudia",
   "version": "0.2.28",
   "description": "Multi-instance Claude Code orchestrator web UI",
@@ -18,11 +18,9 @@
     "claude-code",
     "orchestrator",
     "ai",
-    "terminal",
-    "electron"
+    "terminal"
   ],
   "type": "module",
-  "main": "dist-electron/main.js",
   "bin": {
     "claudia": "bin/claudia.mjs"
   },
@@ -35,12 +33,8 @@
     "frontend/package.json",
     "shared/dist/",
     "shared/package.json",
-    "dist-electron/",
-    "electron/",
     "start.sh",
     "start.ps1",
-    "start-electron.sh",
-    "start-electron.ps1",
     "install.sh",
     "install.ps1",
     "index.html",
@@ -58,18 +52,12 @@
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
-    "dev:electron": "npm run build:backend && npm run build:electron && NODE_ENV=development electron .",
-    "build": "npm run build:backend && npm run build:frontend && npm run build:electron",
+    "build": "npm run build:backend && npm run build:frontend",
     "build:backend": "npm run build -w backend",
     "build:frontend": "npm run build -w frontend",
-    "build:electron": "tsc -p electron/tsconfig.json && tsc -p electron/tsconfig.preload.json",
-    "package": "npm run build && electron-builder",
-    "package:mac": "npm run build && electron-builder --mac",
-    "package:win": "npm run build && electron-builder --win",
-    "package:linux": "npm run build && electron-builder --linux",
     "postinstall": "node -e \"const fs=require('fs'),p=require('path'),d=p.join('node_modules','node-pty','prebuilds');if(fs.existsSync(d)){fs.readdirSync(d).forEach(a=>{const h=p.join(d,a,'spawn-helper');if(fs.existsSync(h))fs.chmodSync(h,0o755)})}\"",
     "prepare": "npm run build -w shared && npm run build:backend",
-    "start": "./start-electron.sh",
+    "start": "./start.sh",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "npm test -w backend",
     "test:frontend": "npm test -w frontend",
@@ -82,8 +70,6 @@
   "devDependencies": {
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
-    "electron": "^39.2.7",
-    "electron-builder": "^26.4.0",
     "playwright": "^1.57.0",
     "vitest": "^3.2.4"
   },
@@ -110,80 +96,5 @@
     "opencode-studio-server": "^1.2.1",
     "uuid": "^9.0.1",
     "ws": "^8.16.0"
-  },
-  "build": {
-    "appId": "com.claudia.app",
-    "productName": "Claudia",
-    "directories": {
-      "output": "release"
-    },
-    "asarUnpack": [
-      "node_modules/node-pty/**"
-    ],
-    "files": [
-      "dist-electron/**/*",
-      "frontend/dist/**/*",
-      "backend/dist/**/*",
-      "backend/hooks/**/*",
-      "node_modules/**/*",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "backend/hooks",
-        "to": "hooks",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "mac": {
-      "category": "public.app-category.developer-tools",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
-      ],
-      "icon": "assets/icon.icns",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false
-    },
-    "dmg": {
-      "contents": [
-        {
-          "x": 130,
-          "y": 220
-        },
-        {
-          "x": 410,
-          "y": 220,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ],
-      "window": {
-        "width": 540,
-        "height": 380
-      }
-    },
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "assets/icon.ico"
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "category": "Development",
-      "icon": "assets/icon.png",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
-    }
   }
 }

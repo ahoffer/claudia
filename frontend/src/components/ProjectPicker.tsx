@@ -1,7 +1,5 @@
 import { useEffect, useCallback, useState, MutableRefObject } from 'react';
 import { useTaskStore } from '../stores/taskStore';
-import { selectDirectory } from '../services/filePickerService';
-import { getBrowserCapabilities } from '../utils/browserCapabilities';
 import { PathInputModal } from './PathInputModal';
 import { RecentWorkspace } from '@claudia/shared';
 
@@ -65,25 +63,7 @@ export function ProjectPicker({ onSelect, wsRef, requestRecentWorkspaces, clearR
     const handleFolderSelect = useCallback(async () => {
         try {
             console.log('[ProjectPicker] Opening folder selection dialog...');
-
-            const capabilities = getBrowserCapabilities();
-
-            // In Electron mode, use native dialog directly
-            if (capabilities.directorySelectionMethod === 'electron') {
-                const result = await selectDirectory();
-                if (result.success && result.path) {
-                    console.log('[ProjectPicker] Selected path:', result.path);
-                    onSelect(result.path);
-                } else if (result.error && result.error.type !== 'cancelled') {
-                    alert(result.error.message || 'Failed to select directory');
-                }
-                setShowProjectPicker(false);
-                return;
-            }
-
-            // In browser mode, show path input modal with browse button
-            // The browse button uses the backend to open native OS folder picker
-            console.log('[ProjectPicker] Browser mode detected, showing path input modal');
+            // Show path input modal with browse button — backend opens native OS folder picker
             setShowPathInput(true);
             setShowProjectPicker(false);
         } catch (error) {
@@ -91,7 +71,7 @@ export function ProjectPicker({ onSelect, wsRef, requestRecentWorkspaces, clearR
             alert(error instanceof Error ? error.message : 'Failed to select directory');
             setShowProjectPicker(false);
         }
-    }, [onSelect, setShowProjectPicker]);
+    }, [setShowProjectPicker]);
 
     useEffect(() => {
         if (showProjectPicker) {

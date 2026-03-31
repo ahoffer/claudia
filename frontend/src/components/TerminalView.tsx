@@ -208,10 +208,7 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
                 // Prevent the browser's native paste event from also firing
                 // (which would cause xterm to paste a second time)
                 event.preventDefault();
-                if (window.electronAPI?.readClipboard) {
-                    const text = window.electronAPI.readClipboard();
-                    if (text) term.paste(text);
-                } else if (navigator.clipboard?.readText) {
+                if (navigator.clipboard?.readText) {
                     navigator.clipboard.readText().then((text) => {
                         if (text) term.paste(text);
                     }).catch((err) => {
@@ -227,9 +224,7 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
             if (isCopy) {
                 const selection = term.getSelection();
                 if (selection) {
-                    if (window.electronAPI?.writeClipboard) {
-                        window.electronAPI.writeClipboard(selection);
-                    } else if (navigator.clipboard?.writeText) {
+                    if (navigator.clipboard?.writeText) {
                         navigator.clipboard.writeText(selection).catch((err) => {
                             console.warn('[TerminalView] Clipboard copy failed:', err);
                         });
@@ -274,9 +269,7 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
             const selection = term.getSelection();
             if (selection) {
                 // Text selected: copy to clipboard
-                if (window.electronAPI?.writeClipboard) {
-                    window.electronAPI.writeClipboard(selection);
-                } else if (navigator.clipboard?.writeText) {
+                if (navigator.clipboard?.writeText) {
                     navigator.clipboard.writeText(selection).catch((err) => {
                         console.warn('[TerminalView] Right-click copy failed:', err);
                     });
@@ -284,10 +277,7 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
                 term.clearSelection();
             } else {
                 // No selection: paste from clipboard
-                if (window.electronAPI?.readClipboard) {
-                    const text = window.electronAPI.readClipboard();
-                    if (text) term.paste(text);
-                } else if (navigator.clipboard?.readText) {
+                if (navigator.clipboard?.readText) {
                     navigator.clipboard.readText().then((text) => {
                         if (text) term.paste(text);
                     }).catch((err) => {
