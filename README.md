@@ -2,7 +2,7 @@
 
 # Claudia
 
-A multi-instance Claude Code orchestrator — a web UI (and Electron desktop app) that lets you run, monitor, and manage multiple Claude Code CLI sessions simultaneously across different projects.
+A multi-instance Claude Code orchestrator — a web UI that lets you run, monitor, and manage multiple Claude Code CLI sessions simultaneously across different projects.
 
 ## Features
 
@@ -20,8 +20,7 @@ A multi-instance Claude Code orchestrator — a web UI (and Electron desktop app
 - **Mobile Access** - Remote access via ngrok tunnel with QR code for mobile devices
 - **System Monitoring** - Real-time CPU and memory usage stats
 - **Conversation History** - View parsed conversation history from Claude Code sessions
-- **Cross-Platform** - Runs on Windows, macOS, and Linux
-- **Electron Desktop App** - Standalone desktop application wrapper
+- **Plugin System** - Extensible AI provider and integration plugins
 
 ## Prerequisites
 
@@ -36,24 +35,9 @@ A multi-instance Claude Code orchestrator — a web UI (and Electron desktop app
 curl -fsSL https://claude.ai/install.sh | bash
 ```
 
-**Windows:**
-```powershell
-irm https://claude.ai/install.ps1 | iex
-```
-
 ## Step 2: Install Claudia
 
-**macOS / Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/ahoffer/claudia/main/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/ahoffer/claudia/main/install.ps1 | iex
-```
-
-**Or install directly via npm:**
+**Install via npm:**
 ```bash
 npm install -g @ahoffer/claudia
 ```
@@ -88,14 +72,8 @@ claudia
 
 Or if running from a cloned repo:
 
-**macOS / Linux:**
 ```bash
 ./start.sh
-```
-
-**Windows (PowerShell):**
-```powershell
-.\start.ps1
 ```
 
 This will:
@@ -105,41 +83,13 @@ This will:
 
 Access the UI at **http://localhost:5173**
 
-### Electron Desktop App
-
-To run as a standalone desktop application:
-
-```bash
-claudia electron
-```
-
-Or if running from a cloned repo:
-
-**macOS / Linux:**
-```bash
-./start-electron.sh
-```
-
-**Windows (PowerShell):**
-```powershell
-.\start-electron.ps1
-```
-
-To build distributable packages:
-
-```bash
-npm run package          # Current platform
-npm run package:mac      # macOS
-npm run package:win      # Windows
-npm run package:linux    # Linux
-```
-
 ### Configure Claudia Settings
 
 On first launch, the Settings panel will open automatically:
 
-1. Enter your **Anthropic API Key**
-2. Choose a model (e.g., Claude 4.5 Sonnet)
+1. Choose your **API provider** (Anthropic, custom endpoint, SAP AI Core, or Hyperspace proxy)
+2. Enter the required credentials for your chosen provider
+3. Select a model
 
 ## Usage
 
@@ -285,141 +235,19 @@ Each MCP server instance receives these environment variables from the task spaw
 | `CLAUDIA_BACKEND_URL` | Backend API URL (default: `http://localhost:4001`) |
 | `CLAUDIA_MCP_DEBUG` | Enable debug logging to stderr |
 
-## Ports
-
-| Service | Port |
-|---------|------|
-| Backend API/WebSocket | 4001 |
-| Frontend | 5173 |
-
-
 ## Development
 
-The project uses auto-reload for rapid development:
-
-- **Backend**: `tsx watch` reloads on file changes (1-2 seconds)
-- **Frontend**: Vite HMR provides instant updates
-
-### Available Scripts
-
-```bash
-# Development
-npm run dev                # Start backend + frontend concurrently
-npm run dev:backend        # Backend only (tsx watch)
-npm run dev:frontend       # Frontend only (Vite HMR)
-npm run dev:electron       # Electron development mode
-
-# Building
-npm run build              # Build all workspaces
-npm run package            # Build Electron distributable
-
-# Testing
-npm run test               # Run all tests
-npm run test:backend       # Backend tests only
-npm run test:frontend      # Frontend tests only
-npm run test:watch         # Watch mode tests
-```
-
-### Test CLI
-
-Test backend changes without the UI:
-
-```bash
-cd backend
-npx tsx test-cli.ts --list-tasks
-npx tsx test-cli.ts -m "your prompt" -w /path/to/workspace
-npx tsx test-cli.ts --help
-```
-
-### CI/CD
-
-Automated tests run on push to `main` and `develop` branches across Ubuntu and Windows environments. The pipeline builds the shared package, backend, and runs unit tests.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for project structure, file inventory, API surface, and deployment details.
 
 ### Releasing
 
-Versioning is controlled by a single file: **`version.txt`** in the project root. All package versions are synced from it.
+Versioning is controlled by `version.txt` in the project root. All package versions are synced from it.
 
-**To release a new version:**
-
-1. Edit `version.txt` with the new version (e.g., `0.2.0`)
-2. Run the release command:
-   ```bash
-   npm run release
-   ```
-
-That's it. The script will:
-- Sync the version into all `package.json` files
-- Commit the changes
-- Create a git tag (`v0.2.0`)
-- Push to `main` with the tag
-
-The CI/CD pipeline then:
-1. Builds and runs all tests automatically
-2. Pauses for **your approval** in GitHub Actions
-3. Publishes `@ahoffer/claudia` to npm
-
-**Other version commands:**
 ```bash
-npm run version:sync    # Sync package.json files to version.txt (no git)
-npm run version:check   # Verify all packages match version.txt
+npm run release
 ```
 
-### Project Structure
-
-```
-claudia/
-├── backend/               # Express + WebSocket server
-│   ├── src/
-│   │   ├── server.ts              # Main server with routes and WebSocket
-│   │   ├── task-spawner.ts        # Process management and task lifecycle
-│   │   ├── claudia-mcp-server.ts  # Claudia MCP server (stdio)
-│   │   ├── config-store.ts        # Settings and configuration storage
-│   │   ├── supervisor-chat.ts     # AI supervisor with tool-calling
-│   │   ├── learnings-store.ts     # Semantic learning storage (MemRL)
-│   │   ├── llm-service.ts         # LLM response generation
-│   │   ├── task-persistence.ts    # Task data persistence and archival
-│   │   ├── task-state-detection.ts # Terminal output state analysis
-│   │   ├── conversation-parser.ts # Claude conversation history parser
-│   │   ├── git-utils.ts           # Git state tracking and revert
-│   │   ├── tunnel-manager.ts      # ngrok tunnel for mobile access
-│   │   ├── usage-reporter.ts      # Token usage analytics
-│   │   ├── backends/              # Pluggable backend implementations
-│   │   │   ├── claude-code-backend.ts  # Claude Code CLI (PTY)
-│   │   │   └── opencode-backend.ts     # OpenCode HTTP API
-│   │   ├── anthropic-proxy/       # Anthropic API proxy
-│   │   └── hyperspace-proxy/      # Hyperspace AI Proxy integration
-│   ├── hooks/                     # Claude Code lifecycle hooks
-│   └── __tests__/                 # Unit tests (Vitest)
-├── frontend/              # React + Vite SPA
-│   └── src/
-│       ├── App.tsx                # Main layout with resizable panels
-│       ├── components/
-│       │   ├── WorkspacePanel.tsx          # Sidebar with workspaces and tasks
-│       │   ├── TerminalView.tsx            # xterm.js terminal emulator
-│       │   ├── SupervisorChat.tsx          # AI chat interface
-│       │   ├── SettingsMenu.tsx            # Full settings panel
-│       │   ├── ConversationHistory.tsx     # Session conversation viewer
-│       │   ├── TaskSummaryPanel.tsx        # Task results and actions
-│       │   ├── LearnFromConversationModal.tsx # Learning extraction UI
-│       │   ├── MobileAccessModal.tsx       # QR code mobile access
-│       │   ├── GlobalVoiceManager.tsx      # Deepgram voice manager
-│       │   ├── SystemStats.tsx             # CPU/memory monitoring
-│       │   └── NotificationContainer.tsx   # Toast notifications
-│       ├── hooks/
-│       │   ├── useWebSocket.ts            # WebSocket with auto-reconnect
-│       │   └── useVoiceRecognition.ts     # Deepgram speech-to-text
-│       └── stores/
-│           └── taskStore.ts               # Zustand global state
-├── shared/                # Shared TypeScript types
-│   └── src/index.ts       # Task, Workspace, ChatMessage types
-├── electron/              # Electron desktop wrapper
-│   ├── main.ts            # Main process and window management
-│   ├── server-manager.ts  # Backend server lifecycle
-│   └── preload.ts         # IPC bridge
-├── start.sh               # Startup script (macOS/Linux)
-├── start.ps1              # Startup script (Windows)
-└── package.json           # Monorepo root config
-```
+This syncs versions into all `package.json` files, commits, tags (`vX.Y.Z`), and pushes. The CI pipeline builds, tests, waits for your approval in GitHub Actions, then publishes to npm.
 
 ## License
 

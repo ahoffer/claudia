@@ -1,6 +1,6 @@
 # Claudia - Project Architecture Documentation
 
-**Claudia** is a headless server application that serves a web UI for managing multiple Claude Code CLI instances simultaneously. The backend runs as a standalone Node.js process and serves the frontend as a static web app — there is no Electron dependency for normal operation. It provides a visual interface for spawning, monitoring, and interacting with Claude Code tasks across different workspaces. An optional Electron wrapper is available for a desktop app experience, but the primary deployment model is a server you access via browser, including from remote or mobile devices.
+**Claudia** is a headless server application that serves a web UI for managing multiple Claude Code CLI instances simultaneously. The backend runs as a standalone Node.js process and serves the frontend as a static web app. It provides a visual interface for spawning, monitoring, and interacting with Claude Code tasks across different workspaces. The primary deployment model is a Linux server you access via browser, including from remote or mobile devices.
 
 ## Project Structure
 
@@ -12,9 +12,11 @@ claudia/
 │   │   ├── plugin-system/        # Plugin manager and registry
 │   │   ├── commands/             # Auto-installed Claude Code commands
 │   │   └── __tests__/            # Unit tests (Vitest)
-│   └── hooks/                    # Claude Code lifecycle hooks
+│   ├── hooks/                    # Claude Code lifecycle hooks
+│   └── plugins/                  # Loadable plugins (AI providers, integrations)
 ├── frontend/             # React frontend application
 │   └── src/
+│       ├── __tests__/            # Unit tests (Vitest)
 │       ├── components/           # UI components
 │       ├── config/               # API endpoint configuration
 │       ├── constants/            # Shared constants
@@ -25,12 +27,13 @@ claudia/
 │       ├── types/                # TypeScript ambient declarations
 │       └── utils/                # Utility functions
 ├── shared/               # Shared TypeScript types
-├── electron/             # Electron desktop wrapper
+│   └── src/
+│       ├── index.ts              # Shared interfaces and types
+│       └── config.ts             # Shared configuration constants
 ├── .claude/              # Claude Code project data
-├── .github/workflows/    # CI/CD pipelines
-├── start.sh              # Startup script (macOS/Linux)
-├── start.ps1             # Startup script (Windows)
-├── package.json          # Root monorepo config
+├── .github/workflows/    # CI/CD pipeline (Ubuntu only)
+├── start.sh              # Startup script (Linux/macOS)
+├── package.json          # Root monorepo config (workspaces: backend, frontend, shared)
 ├── CLAUDE.md             # Project instructions for Claude
 └── ARCHITECTURE.md       # This file
 ```
@@ -43,14 +46,13 @@ claudia/
 |-------|------------|
 | Backend Runtime | Node.js + TypeScript |
 | Backend Framework | Express.js + WebSocket (ws) |
-| Process Management | @homebridge/node-pty-prebuilt-multiarch (cross-platform PTY) |
+| Process Management | node-pty (PTY spawn) |
 | Frontend Framework | React 18 + TypeScript |
 | Frontend Build | Vite (HMR) |
 | State Management | Zustand |
 | Terminal Emulator | xterm.js with addons |
 | Voice Recognition | Deepgram API / Whisper (local) |
 | Voice Synthesis | ElevenLabs TTS |
-| Desktop App | Electron |
 
 ---
 
@@ -61,7 +63,7 @@ claudia/
 | File | Purpose |
 |------|---------|
 | `index.ts` | Entry point - creates server, handles graceful shutdown, auto-installs /learn command |
-| `server.ts` | Main application factory - Express routes, WebSocket server, service wiring, 40+ WebSocket message types |
+| `server.ts` | Main application factory - Express routes, WebSocket server, service wiring, ~50 WebSocket message types |
 
 ### Services
 
@@ -110,13 +112,23 @@ Extensibility layer for adding AI providers, proxies, and integrations without m
 | `plugin-registry.ts` | Registry of loaded plugins, lookup by name/type |
 | `index.ts` | Re-exports plugin system public API |
 
+### Plugins (`backend/plugins/`)
+
+Loadable plugins discovered by the plugin system at startup:
+
+| Directory | Purpose |
+|-----------|---------|
+| `hai-proxy-plugin/` | Hyperspace AI proxy integration - provides `/v1/messages`, `/v1/models`, and `/v1/embeddings` routes when enabled |
+| `sap-ai-core-plugin/` | SAP AI Core integration |
+| `example-plugin/` | Reference implementation for plugin authors |
+
 ### Hooks (`backend/hooks/`)
 
 Shell scripts that integrate with Claude Code CLI lifecycle events:
 
 | File | Purpose |
 |------|---------|
-| `stop-notify.sh` | Called when Claude stops/finishes → sets task to `idle` |
+| `stop-notify.sh` | Called when Claude stops/finishes - sets task to `idle` |
 
 ### Commands (`backend/src/commands/`)
 
@@ -133,7 +145,7 @@ Shell scripts that integrate with Claude Code CLI lifecycle events:
 | `config.json` | Application configuration (auto-generated) |
 | `workspace-config.json` | Workspace list (auto-generated) |
 
-### Tests (`backend/__tests__/`)
+### Tests (`backend/src/__tests__/`)
 
 Unit tests using Vitest:
 
@@ -166,6 +178,7 @@ Unit tests using Vitest:
 | `TerminalView.tsx` | xterm.js terminal emulator for task output and input |
 | `ShellTerminalView.tsx` | Terminal view variant for shell/command sessions |
 | `SupervisorChat.tsx` | Chat interface for conversing with the AI supervisor (tool-calling enabled) |
+| `ActivityPanel.tsx` | Activity feed panel showing recent task events and state changes |
 | `TaskSummaryPanel.tsx` | Displays task summaries, status, and suggested actions |
 | `TaskInputBar.tsx` | Input bar for sending messages to tasks |
 | `TaskCreateModal.tsx` | Modal for creating new tasks with prompt and options |
@@ -202,6 +215,7 @@ Unit tests using Vitest:
 | `useWhisperRecognition.ts` | Local Whisper integration for offline speech-to-text |
 | `useSttRecognition.ts` | Browser-native Web Speech API fallback |
 | `useSpeechSynthesis.ts` | Browser speech synthesis for TTS output |
+| `useTheme.ts` | Theme management hook (light/dark mode) |
 
 ### State (`frontend/src/stores/`)
 
@@ -213,20 +227,20 @@ Unit tests using Vitest:
 
 | File | Purpose |
 |------|---------|
-| `filePickerService.ts` | Abstraction for filesystem path picking, with Electron native dialog support and web fallback |
+| `filePickerService.ts` | Abstraction for filesystem path picking with web fallback |
 
 ### Configuration
 
 | File | Purpose |
 |------|---------|
-| `config/api-config.ts` | API endpoint configuration. Detects Electron, dev, and reverse-proxy environments to build correct backend URLs |
+| `config/api-config.ts` | API endpoint configuration. Detects dev and reverse-proxy environments to build correct backend URLs |
 
 ### Types (`frontend/src/types/`)
 
 | File | Purpose |
 |------|---------|
-| `electron.d.ts` | Ambient declarations for `window.electronAPI` (IPC bridge) |
-| `globals.d.ts` | Other ambient global declarations |
+| `globals.d.ts` | Ambient global declarations |
+| `theme.ts` | Theme type definitions |
 
 ### Utils (`frontend/src/utils/`)
 
@@ -242,6 +256,14 @@ Unit tests using Vitest:
 | `index.css` | Global styles with CSS custom properties for dark theme |
 | `*.css` | Component-specific styles co-located with components |
 
+### Tests (`frontend/src/__tests__/`)
+
+| Test File | Coverage |
+|-----------|----------|
+| `ErrorBoundary.test.tsx` | Error boundary rendering |
+| `events.test.ts` | Event utilities |
+| `taskStore.test.ts` | Zustand store state management |
+
 ---
 
 ## Shared Types (`shared/src/`)
@@ -249,6 +271,7 @@ Unit tests using Vitest:
 | File | Purpose |
 |------|---------|
 | `index.ts` | TypeScript interfaces shared between backend/frontend |
+| `config.ts` | Shared configuration constants |
 
 ### Key Types
 
@@ -278,19 +301,9 @@ TaskSummary: { taskId, status, summary, lastAction, suggestedActions }
 
 ChatMessage: { id, role, content, timestamp, taskId?, workspaceId? }
 
-WSMessageType: 40+ types for task lifecycle, workspaces, chat, supervisor,
+WSMessageType: ~50 types for task lifecycle, workspaces, chat, supervisor,
                archived tasks, learnings, tunnel, system stats, cron, etc.
 ```
-
----
-
-## Electron Desktop App (`electron/`)
-
-| File | Purpose |
-|------|---------|
-| `main.ts` | Main process - window creation, lifecycle management, dev tools support |
-| `server-manager.ts` | Starts/stops Express backend server, returns `ServerInfo` |
-| `preload.ts` | IPC bridge - exposes `window.electronAPI` with `getBackendUrl()` |
 
 ---
 
@@ -298,9 +311,8 @@ WSMessageType: 40+ types for task lifecycle, workspaces, chat, supervisor,
 
 | File | Purpose |
 |------|---------|
-| `start.sh` | Startup script (macOS/Linux) - checks ports, sets CORS_ORIGINS for proxy setups, runs `npm run dev` |
-| `start.ps1` | Startup script (Windows/PowerShell) - port cleanup, environment setup, process management |
-| `package.json` | Monorepo root config with workspaces: backend, frontend, shared, electron |
+| `start.sh` | Startup script (Linux/macOS) - checks ports, sets CORS_ORIGINS for proxy setups, runs `npm run dev` |
+| `package.json` | Monorepo root config with workspaces: backend, frontend, shared |
 | `CLAUDE.md` | Project instructions for Claude Code instances |
 | `ARCHITECTURE.md` | This architecture documentation |
 
@@ -308,10 +320,10 @@ WSMessageType: 40+ types for task lifecycle, workspaces, chat, supervisor,
 
 ## Architecture Diagram
 
-The server and client are **separate machines**. The server always runs on AMD64 Ubuntu (bare metal or VM). The client is any machine running a web browser — the browser is purely UI and hosts no server-side logic.
+The server and client are **separate machines**. The server runs on Linux (AMD64). The client is any machine running a web browser.
 
 ```
-CLIENT MACHINE  (Mac, Linux, Windows)
+CLIENT MACHINE  (any OS with a browser)
   ┌──────────────────────────────────────────────────────────────────┐
   │  Web Browser (React SPA — UI only)                                │
   │  WorkspacePanel  TerminalView  SupervisorChat  Settings           │
@@ -319,13 +331,13 @@ CLIENT MACHINE  (Mac, Linux, Windows)
   └───────────────────────┼──────────────────────────────────────────┘
                           │ outbound WSS :4443
                           ▼
-SERVER  —  AMD64 Ubuntu (VM or bare metal)
+SERVER  —  Linux (VM or bare metal)
   ┌───────────────────────────────────────────────────────────────────┐
   │  nginx :4443  (TLS termination)                                    │
   │      ↓ proxy_pass                                                  │
   │  Express :4001                                                     │
   │  ┌─────────────────────────────────────────────────────────────┐  │
-  │  │  server.ts  (REST + WebSocket, 40+ types)                    │  │
+  │  │  server.ts  (REST + WebSocket, ~50 message types)            │  │
   │  └──────────────┬──────────────────────────────────────────────┘  │
   │                 │                                                  │
   │  ┌──────────────┴──┐  ┌──────────────────────────────────────┐    │
@@ -336,10 +348,14 @@ SERVER  —  AMD64 Ubuntu (VM or bare metal)
   │  ┌──────┴──────────────────────────────────────────────────────┐  │
   │  │  Claude Code / OpenCode CLI instances (PTY)                  │  │
   │  └─────────────────────────────────────────────────────────────┘  │
+  │                                                                    │
+  │  ┌──────────────────────────────────────────────────────────────┐ │
+  │  │  Plugins (AI providers, proxies) — dynamically registered     │ │
+  │  └──────────────────────────────────────────────────────────────┘ │
   └───────────────────────────────────────────────────────────────────┘
 ```
 
-### Client–Server Notes
+### Client-Server Notes
 
 - The browser is UI-only.
 - The `bin/claudia` helper manages the Claudia server process on the server.
@@ -409,20 +425,34 @@ User creates schedule → POST /api/cron → CronScheduler persists to disk
 |--------|----------|---------|
 | GET | `/api/tasks` | List all active tasks |
 | GET | `/api/tasks/:taskId/status` | Get task status |
+| GET | `/api/tasks/:taskId/output` | Get task terminal output |
 | GET | `/api/tasks/:taskId/debug` | Debug information |
 
-### WebSocket Events (Task)
-| Event | Direction | Purpose |
-|-------|-----------|---------|
-| `task:create` | Client → Server | Create a new task |
-| `task:input` | Client → Server | Send input to task |
-| `task:output` | Server → Client | Terminal output stream |
-| `task:stateChanged` | Server → Client | Task state update |
-| `task:resize` | Client → Server | Resize terminal |
-| `task:interrupt` | Client → Server | Interrupt task (ESC) |
-| `task:stop` | Client → Server | Stop task |
-| `task:destroy` | Client → Server | Destroy task |
-| `task:summary` | Server → Client | AI-generated task summary |
+### Workspaces
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/workspaces` | List all workspaces |
+| GET | `/api/workspaces/files` | List files in a workspace |
+| GET | `/api/workspaces/read-file` | Read a file from a workspace |
+| POST | `/api/workspaces/save-file` | Save a file in a workspace |
+| GET | `/api/workspaces/git-status` | Git status for a workspace |
+| GET | `/api/workspaces/git-log` | Git log for a workspace |
+| GET | `/api/workspaces/git-diff` | Git diff for a workspace |
+| GET | `/api/workspaces/ci-status` | CI pipeline status |
+| GET | `/api/workspaces/github-issues` | List GitHub issues |
+| POST | `/api/workspaces/github-issues` | Create GitHub issue |
+| PATCH | `/api/workspaces/github-issues/:issueNumber` | Update GitHub issue |
+| PATCH | `/api/workspaces/pr-description` | Update PR description |
+| POST | `/api/browse-folder` | Browse filesystem directories |
+
+### Scheduled Tasks (Cron)
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/cron` | List all cron schedules |
+| GET | `/api/tasks/:taskId/cron` | List schedules for a task |
+| POST | `/api/tasks/:taskId/cron` | Create schedule for a task |
+| PUT | `/api/cron/:cronId` | Update a cron schedule |
+| DELETE | `/api/cron/:cronId` | Delete a cron schedule |
 
 ### Learnings
 | Method | Endpoint | Purpose |
@@ -433,6 +463,7 @@ User creates schedule → POST /api/cron → CronScheduler persists to disk
 | PUT | `/api/learnings/:id` | Update learning |
 | DELETE | `/api/learnings/:id` | Delete learning |
 | POST | `/api/learnings/search` | Semantic search learnings |
+| GET | `/api/tasks/:taskId/learnings` | Get learnings for a task |
 | POST | `/api/tasks/:taskId/learn` | Analyze task for learnings |
 | POST | `/api/tasks/:taskId/learn/save` | Save learnings from analysis |
 
@@ -451,6 +482,14 @@ User creates schedule → POST /api/cron → CronScheduler persists to disk
 | GET | `/api/claude-mcp-servers` | List Claude MCP servers |
 | GET | `/api/claude-config/mcp-servers` | Get MCP configuration |
 | PUT | `/api/claude-config/mcp-servers` | Update MCP servers |
+| POST | `/api/mcp/test` | Test MCP server connectivity |
+
+### Plugins
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/plugins` | List loaded plugins |
+| POST | `/api/plugins/:name/enable` | Enable a plugin |
+| POST | `/api/plugins/:name/disable` | Disable a plugin |
 
 ### Remote Access
 | Method | Endpoint | Purpose |
@@ -459,7 +498,18 @@ User creates schedule → POST /api/cron → CronScheduler persists to disk
 | POST | `/api/tunnel/stop` | Stop ngrok tunnel |
 | GET | `/api/tunnel/status` | Get tunnel status |
 | GET | `/mobile` | Mobile web interface (mobile-page.ts) |
-| GET | `/voice-agent` | Voice agent interface (voice-agent-page.ts) |
+| GET | `/voice` | Voice agent interface (voice-agent-page.ts) |
+
+### Voice and TTS
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/tts` | Text-to-speech synthesis (ElevenLabs) |
+| GET | `/api/elevenlabs/voices` | List available ElevenLabs voices |
+| GET | `/api/elevenlabs/voices/:voiceId/preview` | Preview a voice |
+| POST | `/api/voice/message` | Send voice message to supervisor |
+| GET | `/api/voice/message/stream` | Stream voice message response |
+| GET | `/api/voice-agent/system-prompt` | Get voice agent system prompt |
+| GET | `/api/voice-agent/tools` | Get voice agent tool definitions |
 
 ### System
 | Method | Endpoint | Purpose |
@@ -469,14 +519,34 @@ User creates schedule → POST /api/cron → CronScheduler persists to disk
 | GET | `/api/system/stats` | CPU/memory stats |
 | POST | `/api/upload/image` | Upload image file |
 | DELETE | `/api/upload/image/:filename` | Delete uploaded image |
-| POST | `/api/tts` | Text-to-speech synthesis (ElevenLabs) |
+| GET | `/api/cache/images/:filename` | Serve cached image |
+| POST | `/api/user-id` | Get or create user ID |
+| POST | `/api/server/restart` | Restart the backend server |
 
-### Proxy Endpoints
+### Plugin-Provided Proxy Endpoints
+
+These endpoints are dynamically registered by AI provider plugins (for example the HAI proxy plugin), not hardcoded in server.ts:
+
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| GET | `/v1/models` | List available Claude models |
+| GET | `/v1/models` | List available models |
 | POST | `/v1/messages` | Anthropic Messages API (proxied) |
 | POST | `/v1/embeddings` | Generate embeddings |
+| POST | `/api/hyperspace-proxy/test` | Test Hyperspace proxy connection |
+| POST | `/api/hyperspace-proxy/models` | List Hyperspace models |
+
+### WebSocket Events (Task)
+| Event | Direction | Purpose |
+|-------|-----------|---------|
+| `task:create` | Client -> Server | Create a new task |
+| `task:input` | Client -> Server | Send input to task |
+| `task:output` | Server -> Client | Terminal output stream |
+| `task:stateChanged` | Server -> Client | Task state update |
+| `task:resize` | Client -> Server | Resize terminal |
+| `task:interrupt` | Client -> Server | Interrupt task (ESC) |
+| `task:stop` | Client -> Server | Stop task |
+| `task:destroy` | Client -> Server | Destroy task |
+| `task:summary` | Server -> Client | AI-generated task summary |
 
 ---
 
@@ -487,10 +557,11 @@ User creates schedule → POST /api/cron → CronScheduler persists to disk
 | Multi-instance task management | TaskSpawner with pluggable backends (ClaudeCode PTY, OpenCode HTTP) |
 | Real-time terminal emulation | xterm.js + WebSocket streaming |
 | AI supervisor chat | SupervisorChat with tool-calling (create/delete/input tasks) |
-| Voice supervisor | VoiceSupervisor — streaming, ultra-short responses for hands-free mobile use |
-| Scheduled tasks | CronScheduler — 5-field cron expressions, persisted, fires into task PTY |
+| Voice supervisor | VoiceSupervisor - streaming, ultra-short responses for hands-free mobile use |
+| Scheduled tasks | CronScheduler - 5-field cron expressions, persisted, fires into task PTY |
 | Learning system | LearningsStore with embeddings, semantic search, MemRL utility scoring |
 | Git integration | git-utils.ts (state capture, diff tracking, revert) |
+| GitHub integration | CI status, issues, PR descriptions via REST API |
 | Voice input | Deepgram cloud, local Whisper, or browser Web Speech API |
 | Voice output | ElevenLabs TTS (mobile page + voice agent page) |
 | Task persistence | JSON files with debounced saves, archived task lazy-loading |
@@ -499,18 +570,16 @@ User creates schedule → POST /api/cron → CronScheduler persists to disk
 | Voice agent page | Standalone voice UI (Deepgram in + ElevenLabs out) for fully hands-free use |
 | System monitoring | Real-time CPU/memory stats polling |
 | Conversation history | Claude Code JSONL + OpenCode message parsing |
-| Hook system | stop-notify.sh → HTTP callback for task lifecycle events |
+| Hook system | stop-notify.sh - HTTP callback for task lifecycle events |
 | Plugin system | PluginManager loads external ai-provider/utility/integration plugins |
 | Claudia MCP | Claude Code agents can spawn and coordinate sibling tasks via MCP tools |
 | Usage analytics | Token tracking via fire-and-forget reporter |
-| Cross-platform | Windows (PowerShell), macOS, Linux support |
-| Desktop app | Electron wrapper with embedded backend |
 
 ---
 
 ## Deployment Architecture
 
-Claudia is designed to run as a server process — either on a local VM for testing or on a remote host for production. The backend must always co-locate with the Claude Code CLI because it spawns PTY processes directly; the frontend is served as static files from the same Express process.
+Claudia runs as a server process on Linux. The backend must co-locate with the Claude Code CLI because it spawns PTY processes directly; the frontend is served as static files from the same Express process.
 
 ### Target Environments
 
@@ -542,11 +611,11 @@ Browser (any device)
 
 ### Key Principles
 
-- **Single port, single process** — Express serves the built frontend statically from `/dist`. Clients connect to one origin; no CORS complexity.
-- **nginx handles TLS** — self-signed certs for now (swap in a CA-signed cert later without touching the app). nginx also terminates auth before traffic reaches Express.
-- **Bearer token auth** — a shared secret in `config.json`, checked by Express middleware. Simple and sufficient for single-user/team deployments.
-- **Environment parity** — VM and remote host run identically. The only difference is the nginx cert and the DNS/IP used to reach it.
-- **Co-location requirement** — the Claude Code CLI (`claude`) must be installed on the same machine as the backend. Remote deployments are "bring your own host with claude installed."
+- **Single port, single process** - Express serves the built frontend statically from `/dist`. Clients connect to one origin; no CORS complexity.
+- **nginx handles TLS** - self-signed certs for now (swap in a CA-signed cert later without touching the app). nginx also terminates auth before traffic reaches Express.
+- **Bearer token auth** - a shared secret in `config.json`, checked by Express middleware. Simple and sufficient for single-user/team deployments.
+- **Environment parity** - VM and remote host run identically. The only difference is the nginx cert and the DNS/IP used to reach it.
+- **Co-location requirement** - the Claude Code CLI (`claude`) must be installed on the same machine as the backend. Remote deployments are "bring your own host with claude installed."
 
 ### TLS (Self-Signed Certs)
 
@@ -575,7 +644,99 @@ server {
 }
 ```
 
-Browsers will warn on self-signed certs; accept the exception once per device. Replace with a CA-signed cert (e.g. Let's Encrypt) when ready.
+Browsers will warn on self-signed certs; accept the exception once per device. Replace with a CA-signed cert (for example Let's Encrypt) when ready.
+
+---
+
+## Networking and Remote Access
+
+### Access Patterns
+
+The frontend auto-detects its access method and routes API/WebSocket traffic accordingly (see `frontend/src/config/api-config.ts`):
+
+| Mode | Detection | API URL | WebSocket |
+|------|-----------|---------|-----------|
+| Direct (local dev) | Default | `http://hostname:4001` | `ws://hostname:4001` |
+| Reverse proxy | HTTPS + non-tunnel host | Same origin | `wss://host` |
+| Tunnel (ngrok) | `*.ngrok-free.app` hostname | Same origin | `wss://host?token=<uuid>&mobile=1` |
+
+### ngrok Tunnel (`backend/src/tunnel-manager.ts`)
+
+Creates public HTTPS URLs for mobile device access:
+
+- Spawns ngrok process targeting port 4001, polls local API at `127.0.0.1:4040` for the public URL
+- Generates a random UUID token per session for authentication
+- Orphan recovery: if the backend restarts (tsx watch reload), the tunnel manager adopts any existing ngrok process so mobile clients keep their URL
+- Optional custom domain via config
+- Exponential backoff reconnection (up to 3 retries)
+
+### CORS (`backend/src/server.ts`)
+
+- Default allowed origins: `localhost:4000`, `localhost:4001`, `127.0.0.1:4000`, `127.0.0.1:4001`
+- Additional origins via `CORS_ORIGINS` environment variable (comma-separated)
+- Tunnel origins (`*.ngrok-free.app`, `*.ngrok.io`, `*.loca.lt`) are automatically whitelisted
+- `start.sh` auto-sets CORS for reverse proxy at `https://<host-ip>:4443`
+
+### WebSocket Upgrade Routing
+
+The WebSocket server runs in `noServer` mode for selective upgrade handling:
+
+- Tunnel requests without a token or `mobile=1` param are rejected (prevents Vite HMR leaking over the tunnel)
+- Mobile connections are validated against the active tunnel token
+- Ping/pong heartbeat every 30 seconds to keep connections alive through proxies
+
+### Frontend Proxying Over Tunnel
+
+When accessed via tunnel, the backend proxies non-API requests to the Vite dev server (port 5173). If Vite is not running (production mode), falls through to static files in `/dist`.
+
+### SSH Infrastructure (`setup-claudia-remote.sh`)
+
+The remote setup script provisions a Linux host for Claudia with SSH-based file access back to a Mac:
+
+1. **SSH keypair**: generates Ed25519 key (`~/.ssh/claudia_ed25519`) on the remote host
+2. **Public key auth**: installs the key in Mac's `~/.ssh/authorized_keys`
+3. **SSH config**: writes a `Host mac` alias with `ServerAliveInterval=30`
+4. **SSHFS mounts**: mounts Mac's `~/projects` at `/Users/<mac-user>/projects` on the remote host via `sshfs` with `reconnect` and `ServerAliveInterval=15`
+5. **systemd automount**: creates `.mount` and `.automount` units so the SSHFS mount reconnects automatically on access
+6. **Claudia service**: systemd unit depending on the automount, with `Restart=on-failure`
+7. **Sudoers**: allows `systemctl start/stop/restart/status claudia` without password
+
+The SSHFS mount preserves Mac workspace paths so Claudia directory paths are identical on both machines.
+
+### VM Setup (`setup-claudia-vm.sh`)
+
+Alternative to SSH remote: runs Claudia in a Colima VM on macOS.
+
+- Uses `virtiofs` for directory mounting (no SSHFS needed)
+- VM gets a routable LAN IP via `--network-address`
+- MCP servers (ports 8100, 8101) run on the Mac for file/shell access from the VM
+
+### Port Assignments
+
+| Service | Port | Notes |
+|---------|------|-------|
+| Backend (Express + WebSocket) | 4001 | Never change this |
+| Frontend (Vite dev server) | 5173 | Dev mode only |
+| OpenCode | 4097 | Alternative backend |
+| Reverse proxy (nginx/Caddy) | 443 or 4443 | TLS termination |
+| ngrok local API | 4040 | Tunnel status polling |
+| Filesystem MCP (Mac) | 8100 | Remote setup only |
+| Shell MCP (Mac) | 8101 | Remote setup only |
+
+### CLI Helper (`bin/claudia`)
+
+Unified CLI for managing Claudia across deployment modes:
+
+| Command | Purpose |
+|---------|---------|
+| `claudia start` | Boot VM or connect to remote, start Claudia, health check |
+| `claudia stop` | Stop Claudia (keep VM/remote running) |
+| `claudia logs` | Tail logs (journalctl for remote, tail for local) |
+| `claudia ssh [cmd]` | Open shell or run command on host |
+| `claudia trust <path>` | Pre-trust workspace with Claude Code |
+| `claudia status` | Show current status and URL |
+
+Mode is read from `~/.config/claudia/config` (`MODE=local` or `MODE=remote`).
 
 ---
 
@@ -591,17 +752,11 @@ Browsers will warn on self-signed certs; accept the exception once per device. R
 
 ### Starting the Project
 
-**macOS / Linux:**
 ```bash
 ./start.sh
 ```
 
-**Windows (PowerShell):**
-```powershell
-.\start.ps1
-```
-
-**Or use npm directly:**
+Or use npm directly:
 ```bash
 npm run dev
 ```
