@@ -6,8 +6,33 @@ import { Task, Workspace } from '@claudia/shared';
 import { Copy, Check, Play, BookOpen, ArrowDown } from 'lucide-react';
 import { TaskInputBar } from './TaskInputBar';
 import { TERMINAL_SCROLL_TO_BOTTOM } from '../constants/events';
+import { useEffectiveTheme } from '../hooks/useTheme';
+import { DARK_TERMINAL_THEME, LIGHT_TERMINAL_THEME } from '../types/theme';
 import '@xterm/xterm/css/xterm.css';
 import './TerminalView.css';
+
+/**
+ * Strip screen-clearing escape sequences from restored history.
+ * When Claude Code goes idle, it sends cleanup sequences (clear screen, cursor home, etc.)
+ * that wipe all visible content. When replaying history, we strip these so the actual
+ * task output remains visible instead of showing a blank screen.
+ */
+function stripScreenClears(history: string): string {
+    return history
+        // \x1bc - RIS (Reset to Initial State) — causes a full terminal reset
+        // that blacks out the screen if no content follows immediately
+        .replace(/\x1bc/g, '')
+        // \x1b[2J\x1b[H - Clear screen + cursor home (common cleanup pattern)
+        // Strip as a pair so standalone \x1b[H used for TUI drawing is preserved
+        .replace(/\x1b\[2J\x1b\[H/g, '')
+        // \x1b[2J - Clear entire screen (standalone)
+        .replace(/\x1b\[2J/g, '')
+        // \x1b[3J - Clear entire screen + scrollback
+        .replace(/\x1b\[3J/g, '')
+        // \x1b[?1049h / \x1b[?1049l - Alt screen buffer enter/exit
+        .replace(/\x1b\[\?1049[hl]/g, '');
+}
+
 
 interface TerminalViewProps {
     task: Task;
@@ -17,6 +42,7 @@ interface TerminalViewProps {
 }
 
 export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewProps) {
+    const effectiveTheme = useEffectiveTheme();
     const terminalRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<Terminal | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
@@ -81,27 +107,8 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
     }, [task.id]);
 
     const copyToClipboard = async () => {
-        if (!xtermRef.current) return;
-
-        // Get all text from the terminal buffer
-        const buffer = xtermRef.current.buffer.active;
-        const lines: string[] = [];
-        for (let i = 0; i < buffer.length; i++) {
-            const line = buffer.getLine(i);
-            if (line) {
-                lines.push(line.translateToString(true));
-            }
-        }
-
-        // Trim empty lines from end
-        while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
-            lines.pop();
-        }
-
-        const text = lines.join('\n');
-
         try {
-            await navigator.clipboard.writeText(text);
+            await navigator.clipboard.writeText(task.prompt);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch (err) {
@@ -134,7 +141,7 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
 
         if (terminalRef.current && (terminalRef.current.clientWidth > 0 && terminalRef.current.clientHeight > 0)) {
             fitTerminal();
-            // Even if successful, try again shortly to ensure font metrics are loaded
+            // Retry a few times to catch font-metrics not yet loaded on first fit
             if (attempts < 3) {
                 setTimeout(() => attemptFit(attempts + 1), 100);
             }
@@ -164,27 +171,7 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
             fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Fira Code", monospace',
             scrollback: 10000,
             allowProposedApi: true,
-            theme: {
-                background: '#0a0a0a',
-                foreground: '#d4d4d4',
-                cursor: '#d4d4d4',
-                black: '#0a0a0a',
-                red: '#cd3131',
-                green: '#0dbc79',
-                yellow: '#e5e510',
-                blue: '#2472c8',
-                magenta: '#bc3fbc',
-                cyan: '#11a8cd',
-                white: '#e5e5e5',
-                brightBlack: '#666666',
-                brightRed: '#f14c4c',
-                brightGreen: '#23d18b',
-                brightYellow: '#f5f543',
-                brightBlue: '#3b8eea',
-                brightMagenta: '#d670d6',
-                brightCyan: '#29b8db',
-                brightWhite: '#e5e5e5',
-            },
+            theme: effectiveTheme === 'light' ? LIGHT_TERMINAL_THEME : DARK_TERMINAL_THEME,
         });
 
         const fitAddon = new FitAddon();
@@ -248,8 +235,13 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
             }
         });
 
+        // Suppress resize events during init to prevent multiple PTY resizes
+        // that trigger Claude TUI redraws interleaving with history output.
+        let initPhase = true;
+
         // Handle resize - sync to backend
         term.onResize(({ cols, rows }) => {
+            if (initPhase) return; // Skip during init — we send one resize after fit
             if (wsRef.current?.readyState === WebSocket.OPEN) {
                 wsRef.current.send(JSON.stringify({
                     type: 'task:resize',
@@ -262,6 +254,19 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
         term.open(terminalRef.current);
         xtermRef.current = term;
         fitAddonRef.current = fitAddon;
+
+        // Track whether user has scrolled up (away from bottom)
+        // xterm native auto-scroll only works when viewport is exactly at bottom;
+        // fitAddon.fit() can shift scrollTop slightly and break it.
+        const viewport = terminalRef.current.querySelector('.xterm-viewport') as HTMLElement | null;
+        const handleViewportScroll = () => {
+            if (!viewport) return;
+            const atBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 50;
+            userHasScrolledRef.current = !atBottom;
+        };
+        if (viewport) {
+            viewport.addEventListener('scroll', handleViewportScroll, { passive: true });
+        }
 
         // Right-click: copy selection or paste (works in both Electron and browser)
         term.element?.addEventListener('contextmenu', (e) => {
@@ -287,11 +292,28 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
             }
         });
 
-        // Initial fit - Delayed to ensure DOM is ready
+        // CRITICAL: Fit the terminal BEFORE requesting history.
+        // History is raw PTY output captured at the original terminal size. If we
+        // write it at default 80x24 and then fit to the actual size, xterm reflows
+        // the content which garbles Claude Code's cursor-positioned TUI output.
+        //
+        // Double-rAF: the first rAF fires before the browser paints; the second
+        // fires after layout + paint have completed, so container dimensions are
+        // final. A single rAF is NOT enough — flexbox/grid sizing may still be
+        // in-progress during the first frame.
         requestAnimationFrame(() => {
-            try {
-                fitAddon.fit();
-                // Force a resize event to ensure backend is synced even if size didn't "change" from default
+            requestAnimationFrame(() => {
+                try {
+                    fitAddon.fit();
+                } catch (e) {
+                    console.error('[TerminalView] Initial fit failed:', e);
+                }
+
+                // End init phase — subsequent resizes (window resize, etc.) will
+                // be forwarded to the backend normally.
+                initPhase = false;
+
+                // Send ONE definitive resize to the backend with the correct dimensions
                 const { cols, rows } = term;
                 if (wsRef.current?.readyState === WebSocket.OPEN) {
                     wsRef.current.send(JSON.stringify({
@@ -299,9 +321,16 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
                         payload: { taskId: task.id, cols, rows }
                     }));
                 }
-            } catch (e) {
-                console.error('[TerminalView] Initial fit failed:', e);
-            }
+
+                // NOW request history — terminal is properly sized, so history
+                // will render correctly without reflow.
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({
+                        type: 'task:select',
+                        payload: { taskId: task.id }
+                    }));
+                }
+            });
         });
 
         // ResizeObserver for container changes
@@ -337,6 +366,10 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
                 const message = JSON.parse(event.data);
                 if (message.type === 'task:output' && message.payload.taskId === task.id) {
                     term.write(message.payload.data);
+                    // Scroll to bottom only if user hasn't scrolled up.
+                    if (!userHasScrolledRef.current) {
+                        term.scrollToBottom();
+                    }
                     // Clear loading state on first output (task is live)
                     if (!historyLoadedRef.current) {
                         console.log(`[TerminalView] First output received, clearing loading state for ${task.id}`);
@@ -345,13 +378,18 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
                     }
                 } else if (message.type === 'task:restore' && message.payload.taskId === task.id) {
                     const { history } = message.payload;
-                    console.log(`[TerminalView] task:restore received for ${task.id}, history size: ${history?.length || 0}`);
-                    if (history) {
+                    console.log(`[TerminalView] task:restore received for ${task.id}, history size: ${history?.length || 0}, alreadyLoaded: ${historyLoadedRef.current}`);
+                    if (history && history.length > 0) {
                         term.reset();
-                        term.write(history);
-                        console.log(`[TerminalView] History written to terminal for ${task.id}`);
+                        const cleaned = stripScreenClears(history);
+                        term.write(cleaned, () => {
+                            term.scrollToBottom();
+                        });
+                        console.log(`[TerminalView] History written for ${task.id} (original: ${history.length}, cleaned: ${cleaned.length})`);
                     } else {
-                        console.warn(`[TerminalView] task:restore received but history is empty for ${task.id}`);
+                        term.reset();
+                        term.write('\x1b[90m── Session history not available ──\x1b[0m\r\n');
+                        console.log(`[TerminalView] Empty history for ${task.id}`);
                     }
                     // Clear loading state - history has been restored
                     historyLoadedRef.current = true;
@@ -366,18 +404,16 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
             wsRef.current.addEventListener('message', handleMessage);
         }
 
-        // Activate task
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({
-                type: 'task:select',
-                payload: { taskId: task.id }
-            }));
-        }
+        // NOTE: task:select is sent inside the requestAnimationFrame above
+        // (after fitAddon.fit()) so that history arrives at the correct terminal size.
 
         return () => {
             if (resizeTimeout) window.clearTimeout(resizeTimeout);
             resizeObserver.disconnect();
             window.removeEventListener('resize', handleWindowResize);
+            if (viewport) {
+                viewport.removeEventListener('scroll', handleViewportScroll);
+            }
             if (wsRef.current) {
                 wsRef.current.removeEventListener('message', handleMessage);
             }
@@ -387,15 +423,11 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
         };
     }, [task.id, wsRef]);
 
-    // Refit on task ID change (when switching between tasks)
-    // Refit on task ID change (when switching between tasks)
+    // Update terminal theme when app theme changes
     useEffect(() => {
-        // Use a small timeout to let layout settle after task switch
-        const timeoutId = setTimeout(() => {
-            fitTerminal();
-        }, 0);
-        return () => clearTimeout(timeoutId);
-    }, [task.id]);
+        if (!xtermRef.current) return;
+        xtermRef.current.options.theme = effectiveTheme === 'light' ? LIGHT_TERMINAL_THEME : DARK_TERMINAL_THEME;
+    }, [effectiveTheme]);
 
     // Handle Resume button click - sends task:reconnect message to spawn new Claude process
     const handleResume = () => {
@@ -427,7 +459,7 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
                 <button
                     className={`copy-button ${copied ? 'copied' : ''}`}
                     onClick={copyToClipboard}
-                    title="Copy terminal content to clipboard"
+                    title="Copy prompt to clipboard"
                 >
                     {copied ? <Check size={16} /> : <Copy size={16} />}
                 </button>
@@ -460,6 +492,22 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
                         <div className="terminal-loading-spinner" />
                         <span className="terminal-loading-text">Loading session history…</span>
                     </div>
+                )}
+                {isMobile && (
+                    <button
+                        className="mobile-interrupt-btn"
+                        onClick={() => {
+                            if (wsRef.current?.readyState === WebSocket.OPEN) {
+                                wsRef.current.send(JSON.stringify({
+                                    type: 'task:input',
+                                    payload: { taskId: task.id, input: '\x1b' }
+                                }));
+                            }
+                        }}
+                        title="Send Escape"
+                    >
+                        <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '-0.5px' }}>ESC</span>
+                    </button>
                 )}
                 {isMobile && (
                     <button

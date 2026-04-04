@@ -1,7 +1,7 @@
 {
   "name": "@ahoffer/claudia",
   "productName": "Claudia",
-  "version": "0.2.28",
+  "version": "0.2.29",
   "description": "Multi-instance Claude Code orchestrator web UI",
   "author": "Aaron Hoffer",
   "license": "MIT",
@@ -65,6 +65,7 @@
     "setup:browsers": "playwright install chromium"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
     "playwright": "^1.57.0",
