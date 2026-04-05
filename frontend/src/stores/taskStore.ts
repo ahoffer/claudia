@@ -265,7 +265,7 @@ export const useTaskStore = create<TaskStore>()(
             autoSendEnabled: false,
             autoSendDelayMs: 3000,
             deepgramApiKey: '',
-            sttProvider: 'deepgram',
+            sttProvider: 'browser',
             whisperUrl: 'http://localhost:8080',
 
             // Supervisor initial state

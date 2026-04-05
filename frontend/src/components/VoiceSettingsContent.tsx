@@ -132,14 +132,6 @@ export function VoiceSettingsContent() {
                 </h3>
                 <div className="stt-provider-cards">
                     <button
-                        className={`stt-provider-card ${sttProvider === 'deepgram' ? 'selected' : ''}`}
-                        onClick={() => setSttProvider('deepgram')}
-                    >
-                        <Key size={18} />
-                        <span className="stt-provider-name">Deepgram</span>
-                        <span className="stt-provider-desc">Nova-3 · streaming · accurate</span>
-                    </button>
-                    <button
                         className={`stt-provider-card ${sttProvider === 'browser' ? 'selected' : ''}`}
                         onClick={() => setSttProvider('browser')}
                     >
@@ -154,6 +146,14 @@ export function VoiceSettingsContent() {
                         <Server size={18} />
                         <span className="stt-provider-name">Whisper</span>
                         <span className="stt-provider-desc">Local · private · offline</span>
+                    </button>
+                    <button
+                        className={`stt-provider-card ${sttProvider === 'deepgram' ? 'selected' : ''}`}
+                        onClick={() => setSttProvider('deepgram')}
+                    >
+                        <Key size={18} />
+                        <span className="stt-provider-name">Deepgram</span>
+                        <span className="stt-provider-desc">Nova-3 · streaming · accurate</span>
                     </button>
                 </div>
             </div>
@@ -297,10 +297,10 @@ export function VoiceSettingsContent() {
                         checked={voiceEnabled}
                         onChange={(e) => setVoiceEnabled(e.target.checked)}
                     />
-                    <span>Show Microphone Buttons (Legacy)</span>
+                    <span>Show Microphone Buttons</span>
                 </label>
                 <p className="setting-description">
-                    Show individual microphone buttons on input fields (not needed with always-listening mode)
+                    Show individual microphone buttons on input fields
                 </p>
             </div>
 
