@@ -56,13 +56,9 @@ npm run build -w shared
 ./start.sh
 ```
 
-This will:
-1. Generate a self-signed TLS certificate (first run only, stored in `~/.claudia/certs/`)
-2. Check that required ports are free
-3. Start the backend server (HTTPS on port 4001)
-4. Start the frontend dev server (HTTPS on port 5173)
+On first run this generates a self-signed TLS certificate (stored in `~/.claudia/certs/`), checks ports, and starts the server.
 
-Access the UI at **https://localhost:5173** (or **https://localhost:4001** if Vite is not running).
+Access the UI at **https://localhost:4001**.
 Your browser will warn about the self-signed certificate on first visit — accept the exception to continue.
 To use a real certificate, replace `~/.claudia/certs/server.key` and `server.crt`.
 
