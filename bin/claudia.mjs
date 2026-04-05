@@ -2,8 +2,7 @@
 
 // Claudia CLI
 // Usage:
-//   claudia                Start the app (Electron in dev, web server in production)
-//   claudia web            Start the web app (backend + frontend)
+//   claudia                Start the server
 //   claudia --help         Show help
 
 import { spawn } from 'child_process';
@@ -18,9 +17,6 @@ const ROOT_DIR = join(__dirname, '..');
 const args = process.argv.slice(2);
 const command = args[0] || 'start';
 
-// Detect if running from a dev clone (has source files) vs npm global install (only dist)
-const isDev = existsSync(join(ROOT_DIR, 'shared', 'src', 'index.ts'));
-
 function printHelp() {
     console.log(`
 Claudia - Multi-instance Claude Code orchestrator
@@ -28,8 +24,7 @@ Claudia - Multi-instance Claude Code orchestrator
 Usage: claudia [command]
 
 Commands:
-  start         Start the app (default)
-  web           Start the web app (backend + frontend)${isDev ? '\n  build         Build all packages' : ''}
+  start         Start the server (default)
   help          Show this help
 
 Options:
@@ -49,90 +44,18 @@ function printVersion() {
     }
 }
 
-function runScript(scriptPath, scriptArgs = []) {
-    const isWindows = process.platform === 'win32';
-    const ext = isWindows ? '.ps1' : '.sh';
-    const script = join(ROOT_DIR, scriptPath + ext);
+function runStart() {
+    const script = join(ROOT_DIR, 'start.sh');
 
     if (!existsSync(script)) {
-        console.error(`Script not found: ${script}`);
+        console.error(`start.sh not found: ${script}`);
         process.exit(1);
     }
 
-    let child;
-    if (isWindows) {
-        child = spawn('powershell', ['-ExecutionPolicy', 'Bypass', '-File', script, ...scriptArgs], {
-            cwd: ROOT_DIR,
-            stdio: 'inherit',
-            env: { ...process.env }
-        });
-    } else {
-        child = spawn('bash', [script, ...scriptArgs], {
-            cwd: ROOT_DIR,
-            stdio: 'inherit',
-            env: { ...process.env }
-        });
-    }
-
-    child.on('error', (err) => {
-        console.error(`Failed to start: ${err.message}`);
-        process.exit(1);
-    });
-
-    child.on('exit', (code) => {
-        process.exit(code || 0);
-    });
-
-    // Forward signals to child process
-    ['SIGINT', 'SIGTERM'].forEach((signal) => {
-        process.on(signal, () => {
-            child.kill(signal);
-        });
-    });
-}
-
-function runNpm(script) {
-    const isWindows = process.platform === 'win32';
-    const npmCmd = isWindows ? 'npm.cmd' : 'npm';
-
-    const child = spawn(npmCmd, ['run', script], {
+    const child = spawn('bash', [script], {
         cwd: ROOT_DIR,
         stdio: 'inherit',
         env: { ...process.env }
-    });
-
-    child.on('error', (err) => {
-        console.error(`Failed to run npm script: ${err.message}`);
-        process.exit(1);
-    });
-
-    child.on('exit', (code) => {
-        process.exit(code || 0);
-    });
-}
-
-/**
- * Production mode: start the backend server directly with Node.
- * The backend serves the API + pre-built frontend static files.
- */
-function runProduction() {
-    const backendEntry = join(ROOT_DIR, 'backend', 'dist', 'index.js');
-
-    if (!existsSync(backendEntry)) {
-        console.error('Error: Backend not found. The package may be corrupted.');
-        console.error(`Expected: ${backendEntry}`);
-        process.exit(1);
-    }
-
-    console.log('Starting Claudia...');
-
-    const child = spawn(process.execPath, [backendEntry], {
-        cwd: ROOT_DIR,
-        stdio: 'inherit',
-        env: {
-            ...process.env,
-            NODE_ENV: 'production',
-        }
     });
 
     child.on('error', (err) => {
@@ -154,20 +77,7 @@ function runProduction() {
 switch (command) {
     case 'start':
     case 'web':
-        if (isDev) {
-            runScript('start');
-        } else {
-            runProduction();
-        }
-        break;
-
-    case 'build':
-        if (isDev) {
-            runNpm('build');
-        } else {
-            console.error('Build is only available in development mode.');
-            process.exit(1);
-        }
+        runStart();
         break;
 
     case 'help':
