@@ -1,17 +1,8 @@
 # Developer Guide
 
-## Starting the Dev Server
+## Auto-Reload
 
-```bash
-./start.sh
-```
-
-Or use npm directly:
-```bash
-npm run dev
-```
-
-The backend uses `tsx watch` and auto-reloads on file changes. The frontend uses Vite HMR.
+The backend uses `tsx watch` and auto-reloads when you change `.ts` files. The frontend uses Vite HMR. No need to restart the server during development.
 
 ## Testing
 
