@@ -46,8 +46,8 @@ npm install
 node -v  # check your version
 npm install node-pty@1.2.0-beta.11  # only if v25+
 
-# Build the shared types package (required before first run)
-npm run build -w shared
+# Build everything
+npm run build
 ```
 
 ## Step 3: Running the App
@@ -55,6 +55,8 @@ npm run build -w shared
 ```bash
 ./start.sh
 ```
+
+For development with auto-reload, use `./start-dev.sh` instead (see [DEVELOPER.md](DEVELOPER.md)).
 
 On first run this generates a self-signed TLS certificate (stored in `~/.claudia/certs/`), checks ports, and starts the server.
 

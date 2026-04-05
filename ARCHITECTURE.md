@@ -32,7 +32,8 @@ claudia/
 │       └── config.ts             # Shared configuration constants
 ├── .claude/              # Claude Code project data
 ├── .github/workflows/    # CI/CD pipeline (Ubuntu only)
-├── start.sh              # Startup script (Linux/macOS)
+├── start.sh              # Production startup script
+├── start-dev.sh          # Development startup script (tsx watch + Vite HMR)
 ├── package.json          # Root monorepo config (workspaces: backend, frontend, shared)
 ├── CLAUDE.md             # Project instructions for Claude
 └── ARCHITECTURE.md       # This file
@@ -311,7 +312,8 @@ WSMessageType: ~50 types for task lifecycle, workspaces, chat, supervisor,
 
 | File | Purpose |
 |------|---------|
-| `start.sh` | Startup script (Linux/macOS) - generates TLS cert on first run, checks ports, sets CORS_ORIGINS, runs `npm run dev` over HTTPS |
+| `start.sh` | Production startup - generates TLS cert on first run, runs compiled backend (`node backend/dist/index.js`) |
+| `start-dev.sh` | Development startup - same setup, but runs tsx watch + Vite HMR for auto-reload |
 | `package.json` | Monorepo root config with workspaces: backend, frontend, shared |
 | `CLAUDE.md` | Project instructions for Claude Code instances |
 | `ARCHITECTURE.md` | This architecture documentation |

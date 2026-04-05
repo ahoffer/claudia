@@ -1,8 +1,12 @@
 # Developer Guide
 
-## Auto-Reload
+## Starting the Dev Server
 
-The backend uses `tsx watch` and auto-reloads when you change `.ts` files. The frontend uses Vite HMR. No need to restart the server during development.
+```bash
+./start-dev.sh
+```
+
+The backend auto-reloads when you change `.ts` files (tsx watch). The frontend uses Vite HMR. No need to restart during development.
 
 ## Testing
 

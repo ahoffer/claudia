@@ -24,7 +24,8 @@ npm install && npm run build -w shared  # install deps and compile shared types 
 ## Step 3: Start the server
 
 ```bash
-./start.sh  # generates TLS cert on first run, then starts backend (:4001) and frontend (:5173) over HTTPS
+npm run build        # compile backend and frontend
+./start.sh           # generates TLS cert on first run, starts HTTPS server on :4001
 ```
 
 ## Step 4: Connect from a browser

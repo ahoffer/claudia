@@ -4,7 +4,7 @@ Read README.md, ARCHITECTURE.md, and INSTALL.md in the project root for full con
 
 ## DO NOT RESTART THE SERVER
 
-NEVER run `./start.sh`, `npm run dev`, or kill/restart the server during development.
+NEVER run `./start.sh`, `./start-dev.sh`, `npm run dev`, or kill/restart the server during development.
 
 The backend uses `tsx watch` which automatically reloads when you change `.ts` files. Wait 1-2 seconds after saving and changes are live.
 

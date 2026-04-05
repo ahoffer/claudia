@@ -34,6 +34,7 @@
     "shared/dist/",
     "shared/package.json",
     "start.sh",
+    "start-dev.sh",
     "index.html",
     "styles.css",
     "version.txt",
