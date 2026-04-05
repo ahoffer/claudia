@@ -4,11 +4,11 @@
  */
 
 // The local server's Anthropic proxy endpoint (same server, no port needed)
-import { PORTS } from '@claudia/shared';
+import { BACKEND_URL } from '@claudia/shared';
 
 import type { ConfigStore } from './config-store.js';
 
-const LLM_API_URL = `http://localhost:${PORTS.BACKEND}/v1/messages`;
+const LLM_API_URL = `${BACKEND_URL}/v1/messages`;
 const DEFAULT_LLM_MODEL = 'claude-sonnet-4-5-20250929';
 
 let configStoreRef: ConfigStore | null = null;

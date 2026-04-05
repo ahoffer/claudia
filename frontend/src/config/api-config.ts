@@ -1,12 +1,11 @@
 /**
  * API Configuration - Centralized URL management for backend API
- * When accessed via a localtunnel (e.g. mobile over the internet), the
- * backend reverse-proxies the frontend on the same origin, so we use
- * same-origin URLs instead of pointing at a separate port.
- * When accessed via an HTTPS reverse proxy (e.g. Caddy on a remote host),
- * the page protocol is https: — we use same-origin URLs so requests go
- * through the proxy rather than trying to reach the backend port directly
- * (which would be blocked as mixed content).
+ *
+ * Access modes (checked in order):
+ * 1. Tunnel (ngrok, localtunnel) — same-origin, protocol from page
+ * 2. Direct HTTPS — local/LAN with self-signed cert, explicit backend port
+ * 3. Reverse proxy (Caddy/nginx) — same-origin through proxy
+ * 4. Plain HTTP dev — explicit backend port
  */
 import { PORTS } from '@claudia/shared';
 
@@ -18,14 +17,25 @@ export function isTunnelAccess(): boolean {
 }
 
 /**
- * True when the page was loaded via HTTPS from a non-tunnel host, meaning
- * a reverse proxy (e.g. Caddy) is terminating TLS in front of the backend.
- * In this case all API and WebSocket traffic must go through the same origin
- * so the proxy can forward it — direct connections to the backend port would
- * be blocked as mixed content.
+ * True when running locally (or on LAN) with HTTPS but without a reverse proxy.
+ * The page is served by Vite on its own port, so API requests must target the
+ * backend port explicitly (cross-origin).
+ */
+function isDirectHttps(): boolean {
+    if (window.location.protocol !== 'https:') return false;
+    if (isTunnelAccess()) return false;
+    const host = window.location.hostname;
+    // localhost, 127.0.0.1, or bare IP addresses are direct access
+    return host === 'localhost' || host === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(host);
+}
+
+/**
+ * True when the page was loaded via HTTPS from a non-tunnel, non-direct host,
+ * meaning a reverse proxy (e.g. Caddy) is terminating TLS in front of the backend.
+ * In this case all traffic must go through the same origin.
  */
 export function isReverseProxyAccess(): boolean {
-    return window.location.protocol === 'https:' && !isTunnelAccess();
+    return window.location.protocol === 'https:' && !isTunnelAccess() && !isDirectHttps();
 }
 
 /**
@@ -38,42 +48,25 @@ export function getMobileToken(): string | null {
 
 /**
  * Get the base URL for HTTP API requests
- * @returns Base URL (e.g., "http://localhost:3001")
  */
 export function getApiBaseUrl(): string {
-    // Tunnel access — backend is on the same origin (it proxies the frontend)
-    if (isTunnelAccess()) {
-        return window.location.origin;
-    }
-
-    // HTTPS reverse proxy — use same origin so requests go through the proxy
-    if (isReverseProxyAccess()) {
-        return window.location.origin;
-    }
-
-    // Web environment - use hostname with configured port
+    if (isTunnelAccess()) return window.location.origin;
+    if (isDirectHttps()) return `https://${window.location.hostname}:${PORTS.BACKEND}`;
+    if (isReverseProxyAccess()) return window.location.origin;
     return `http://${window.location.hostname}:${PORTS.BACKEND}`;
 }
 
 /**
  * Get the WebSocket URL
- * @returns WebSocket URL (e.g., "ws://localhost:3001")
  */
 export function getWebSocketUrl(): string {
-    // Tunnel access — use same host, upgrade protocol
     if (isTunnelAccess()) {
         const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const token = getMobileToken();
         const base = `${proto}//${window.location.host}`;
-        // Append mobile token so the backend accepts the WebSocket connection
         return token ? `${base}?token=${token}&mobile=1` : base;
     }
-
-    // HTTPS reverse proxy — use wss: on the same host so the proxy forwards it
-    if (isReverseProxyAccess()) {
-        return `wss://${window.location.host}`;
-    }
-
-    // Web environment - use hostname with configured port
+    if (isDirectHttps()) return `wss://${window.location.hostname}:${PORTS.BACKEND}`;
+    if (isReverseProxyAccess()) return `wss://${window.location.host}`;
     return `ws://${window.location.hostname}:${PORTS.BACKEND}`;
 }

@@ -53,6 +53,45 @@ check_deps() {
 
 check_deps
 
+# ============================================
+# TLS CERTIFICATE — auto-generate self-signed cert if missing
+# ============================================
+ensure_certs() {
+    local cert_dir="$HOME/.claudia/certs"
+    local key="$cert_dir/server.key"
+    local cert="$cert_dir/server.crt"
+
+    if [ -f "$key" ] && [ -f "$cert" ]; then
+        echo "🔒 TLS certificate found at $cert_dir"
+    else
+        echo "🔒 Generating self-signed TLS certificate..."
+        mkdir -p "$cert_dir"
+
+        # Build SAN list: localhost + loopback + LAN IP
+        local san="DNS:localhost,IP:127.0.0.1,IP:::1"
+        local host_ip
+        host_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+        if [ -n "$host_ip" ]; then
+            san="$san,IP:$host_ip"
+        fi
+
+        openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout "$key" -out "$cert" \
+            -days 365 -subj "/CN=claudia" \
+            -addext "subjectAltName=$san" \
+            2>/dev/null
+
+        echo "   Certificate generated at $cert_dir"
+        echo "   ⚠  Accept the browser warning on first visit (self-signed cert)"
+        echo "   To use a real cert, replace server.key and server.crt in that directory"
+    fi
+
+    export CLAUDIA_TLS_CERT="$cert"
+    export CLAUDIA_TLS_KEY="$key"
+}
+
+ensure_certs
+
 # Fix node-pty spawn-helper permissions (npm doesn't preserve execute bits)
 for helper in node_modules/node-pty/prebuilds/*/spawn-helper; do
     [ -f "$helper" ] && chmod +x "$helper"
@@ -84,8 +123,8 @@ fi
 echo "✅ Ports are free"
 echo ""
 echo "🔮 Starting Claudia..."
-echo "   Backend: http://localhost:$BACKEND_PORT"
-echo "   Frontend: http://localhost:$FRONTEND_PORT"
+echo "   Backend: https://localhost:$BACKEND_PORT"
+echo "   Frontend: https://localhost:$FRONTEND_PORT"
 echo ""
 
 # Start from project root
@@ -100,13 +139,19 @@ export CLAUDIA_BACKEND_PORT=$BACKEND_PORT
 # Override by setting CORS_ORIGINS before running start.sh, or via .env.
 if [ -z "$CORS_ORIGINS" ]; then
     HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    local_origins="https://localhost:$FRONTEND_PORT,https://localhost:$BACKEND_PORT"
+    local_origins="$local_origins,https://127.0.0.1:$FRONTEND_PORT,https://127.0.0.1:$BACKEND_PORT"
     if [ -n "$HOST_IP" ]; then
-        export CORS_ORIGINS="https://${HOST_IP}:4443,https://localhost:4443"
+        local_origins="$local_origins,https://${HOST_IP}:$FRONTEND_PORT,https://${HOST_IP}:$BACKEND_PORT"
+        local_origins="$local_origins,https://${HOST_IP}:4443,https://localhost:4443"
     fi
+    export CORS_ORIGINS="$local_origins"
 fi
 
 # Increase Node.js memory limit for backend (handles many persisted tasks + archived tasks)
+# Accept self-signed certs for internal localhost connections (backend calling itself)
 export NODE_OPTIONS="--max-old-space-size=8192"
+export NODE_TLS_REJECT_UNAUTHORIZED=0
 
 # Start backend and frontend
 # Backend: tsx watch - auto-reloads on file changes (or use restart button in UI)

@@ -1,5 +1,6 @@
 import express from 'express';
-import { createServer, request as httpRequest } from 'http';
+import { createServer as createHttpServer, request as httpRequest } from 'http';
+import { createServer as createHttpsServer } from 'https';
 import { WebSocketServer, WebSocket } from 'ws';
 import cors from 'cors';
 import os from 'os';
@@ -331,7 +332,11 @@ function notifyTasksOfMcpChange(
 
 export async function createApp(basePath?: string) {
     const app = express();
-    const server = createServer(app);
+    const tlsCert = process.env.CLAUDIA_TLS_CERT;
+    const tlsKey = process.env.CLAUDIA_TLS_KEY;
+    const server = (tlsCert && tlsKey && existsSync(tlsCert) && existsSync(tlsKey))
+        ? createHttpsServer({ cert: readFileSync(tlsCert), key: readFileSync(tlsKey) }, app)
+        : createHttpServer(app);
     // Use noServer mode so we can manually route WebSocket upgrade requests.
     // This is critical for tunnel access: Vite HMR WebSocket connections need
     // to be proxied to the Vite dev server, not handled by our app's WSS.
@@ -341,10 +346,10 @@ export async function createApp(basePath?: string) {
     const allowedOrigins = process.env.CORS_ORIGINS
         ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
         : [
-            'http://localhost:4000',
-            'http://localhost:4001',
-            'http://127.0.0.1:4000',
-            'http://127.0.0.1:4001',
+            'http://localhost:4001',  'https://localhost:4001',
+            'http://localhost:5173',  'https://localhost:5173',
+            'http://127.0.0.1:4001', 'https://127.0.0.1:4001',
+            'http://127.0.0.1:5173', 'https://127.0.0.1:5173',
         ];
     app.use(cors({
         origin: (origin, callback) => {
@@ -354,7 +359,7 @@ export async function createApp(basePath?: string) {
             // the backend directly — the origin host is just the server's own address)
             try {
                 const url = new URL(origin);
-                if (url.port === String(PORTS.BACKEND) || (!url.port && url.protocol === 'http:' && PORTS.BACKEND === 80)) {
+                if (url.port === String(PORTS.BACKEND) || (!url.port && (url.protocol === 'http:' || url.protocol === 'https:') && PORTS.BACKEND === 80)) {
                     return callback(null, true);
                 }
                 // Allow ngrok/localtunnel origins (tunnel access uses token auth)

@@ -9,7 +9,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { ConfigStore } from './config-store.js';
-import { PORTS } from '@claudia/shared';
+import { BACKEND_URL } from '@claudia/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -96,7 +96,7 @@ export class LearningsStore {
      * Generate embeddings via the local proxy
      */
     async generateEmbedding(text: string): Promise<number[]> {
-        const url = `http://localhost:${PORTS.BACKEND}/v1/embeddings`;
+        const url = `${BACKEND_URL}/v1/embeddings`;
 
         console.log(`[LearningsStore] Generating embedding for text (${text.length} chars)...`);
 

@@ -11,5 +11,5 @@ export const PORTS = {
     OPENCODE: 4097,
 };
 
-export const BACKEND_URL = `http://localhost:${PORTS.BACKEND}`;
-export const BACKEND_WS_URL = `ws://localhost:${PORTS.BACKEND}`;
+export const BACKEND_URL = `https://localhost:${PORTS.BACKEND}`;
+export const BACKEND_WS_URL = `wss://localhost:${PORTS.BACKEND}`;

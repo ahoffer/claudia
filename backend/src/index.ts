@@ -66,8 +66,10 @@ console.log(`[Index] Starting server on port ${PORT}...`);
 let httpServer: ReturnType<typeof server.listen> | undefined;
 try {
     httpServer = server.listen(PORT, () => {
-        console.log(`Claude Code UI running on http://localhost:${PORT}`);
-        console.log(`WebSocket available at ws://localhost:${PORT}`);
+        const proto = process.env.CLAUDIA_TLS_CERT ? 'https' : 'http';
+        const wsProto = process.env.CLAUDIA_TLS_CERT ? 'wss' : 'ws';
+        console.log(`Claude Code UI running on ${proto}://localhost:${PORT}`);
+        console.log(`WebSocket available at ${wsProto}://localhost:${PORT}`);
         console.log(`[Index] Server successfully listening`);
     });
 

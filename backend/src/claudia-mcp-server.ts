@@ -23,12 +23,15 @@
 
  */
 
+// Accept self-signed certs when connecting to the local Claudia backend
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
 // Backend URL - defaults to localhost:4001, can be overridden via env
-const BACKEND_URL = process.env.CLAUDIA_BACKEND_URL || 'http://localhost:4001';
+const BACKEND_URL = process.env.CLAUDIA_BACKEND_URL || 'https://localhost:4001';
 
 // Workspace this MCP server is scoped to (set by task-spawner)
 const WORKSPACE_ID = process.env.CLAUDIA_WORKSPACE_ID || '';

@@ -12,7 +12,7 @@ echo "[StopHook] Session: $session_id" >> /tmp/codeui-hooks.log 2>&1
 
 # Send notification to our backend via HTTP
 # The backend listens on port 4001 (see shared/src/config.ts)
-response=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:4001/api/claude-stopped" \
+response=$(curl -ks -w "\n%{http_code}" -X POST "https://localhost:4001/api/claude-stopped" \
   -H "Content-Type: application/json" \
   -d "{\"session_id\": \"$session_id\"}" 2>&1)
 
