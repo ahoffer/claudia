@@ -3,12 +3,14 @@ import { useTaskStore } from '../stores/taskStore';
 import { Task, Workspace } from '@claudia/shared';
 import {
     Loader2, Circle, ChevronRight, ChevronDown,
-    Trash2, FolderOpen, Plus, Briefcase, Send, AlertCircle, StopCircle, Undo2, GripVertical, Archive, RotateCcw, Play, MoreVertical, Terminal, Search, GitBranch, ImagePlus, X, FileText, GripHorizontal, Copy, Pencil, Link2, Check, CheckCircle, FolderPlus, Clipboard, Columns2, Clock
+    Trash2, FolderOpen, Plus, Briefcase, Send, AlertCircle, StopCircle, Undo2, GripVertical, Archive, RotateCcw, Play, MoreVertical, Terminal, Search, GitBranch, ImagePlus, X, FileText, GripHorizontal, Copy, Pencil, Link2, Check, CheckCircle, FolderPlus, Clipboard, Columns2, Clock, Monitor
 } from 'lucide-react';
 import { getApiBaseUrl } from '../config/api-config';
+import { copyText } from '../utils/browserCapabilities';
 import { SystemPromptModal } from './SystemPromptModal';
 import { ConfirmModal } from './ConfirmModal';
 import { ScheduledTasksModal } from './ScheduledTasksModal';
+import { LocalWorkspaceModal } from './LocalWorkspaceModal';
 import './WorkspacePanel.css';
 
 // Simple notification sound using Web Audio API
@@ -719,9 +721,11 @@ function WorkspaceSection({
                 fullMessage = inputValue + imageText;
             }
             // Estimate terminal size based on window size
-            // Typically ~9px width per char and ~18px height per line for monospace font
-            const cols = Math.floor((window.innerWidth - 400) / 9); // Subtract sidebar/padding
-            const rows = Math.floor((window.innerHeight - 100) / 18); // Subtract header/input
+            // These are initial hints — TerminalView sends accurate dimensions once xterm fits
+            const estimatedCols = Math.floor((window.innerWidth * 0.55) / 9);
+            const estimatedRows = Math.floor((window.innerHeight - 100) / 18);
+            const cols = Math.max(estimatedCols, 80);
+            const rows = Math.max(estimatedRows, 24);
             onCreateTask(fullMessage.trim(), cols, rows);
             setInputValue('');
             // Clear images after sending
@@ -878,7 +882,7 @@ function WorkspaceSection({
                             title={`Click to copy: ${branchName}`}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                navigator.clipboard.writeText(branchName);
+                                copyText(branchName);
                                 const el = e.currentTarget;
                                 el.classList.add('copied');
                                 setTimeout(() => el.classList.remove('copied'), 1000);
@@ -967,7 +971,7 @@ function WorkspaceSection({
                                 className="workspace-dropdown-item"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    navigator.clipboard.writeText(workspace.id).catch(err => console.error('Failed to copy path:', err));
+                                    copyText(workspace.id).catch(err => console.error('Failed to copy path:', err));
                                     onToggleMenu();
                                 }}
                             >
@@ -1457,6 +1461,7 @@ export function WorkspacePanel({
     onRenameTask,
     onRenameWorkspace,
     onToggleReference,
+    onCreateWorkspace,
     onAddCustomReference,
     onRemoveReference,
     onResetWorkspace
@@ -1547,8 +1552,30 @@ export function WorkspacePanel({
         prevWaitingRef.current = currentWaiting;
     }, [waitingInputNotifications]);
 
-    const handleAddWorkspace = () => {
+    const [showAddMenu, setShowAddMenu] = useState(false);
+    const addMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!showAddMenu) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+                setShowAddMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showAddMenu]);
+
+    const handleAddRemoteWorkspace = () => {
+        setShowAddMenu(false);
         setShowProjectPicker(true);
+    };
+
+    const [showLocalModal, setShowLocalModal] = useState(false);
+
+    const handleAddLocalWorkspace = () => {
+        setShowAddMenu(false);
+        setShowLocalModal(true);
     };
 
     const handleToggleArchivedTasks = () => {
@@ -1605,13 +1632,25 @@ export function WorkspacePanel({
                             <option value={4}>4 col</option>
                         </select>
                     </div>
-                    <button
-                        className="add-workspace-button"
-                        onClick={handleAddWorkspace}
-                        title="Add workspace"
-                    >
-                        <Plus size={16} />
-                    </button>
+                    <div className="add-workspace-dropdown" ref={addMenuRef} style={{ position: 'relative' }}>
+                        <button
+                            className="add-workspace-button"
+                            onClick={() => setShowAddMenu(prev => !prev)}
+                            title="Add workspace"
+                        >
+                            <Plus size={16} />
+                        </button>
+                        {showAddMenu && (
+                            <div className="add-workspace-menu">
+                                <button onClick={handleAddRemoteWorkspace}>
+                                    <FolderOpen size={14} /> Add Remote Workspace
+                                </button>
+                                <button onClick={handleAddLocalWorkspace}>
+                                    <Monitor size={14} /> Add Local Workspace
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -1655,9 +1694,9 @@ export function WorkspacePanel({
                         <p>No workspaces yet.</p>
                         <button
                             className="create-first-workspace-btn"
-                            onClick={handleAddWorkspace}
+                            onClick={handleAddRemoteWorkspace}
                         >
-                            <FolderOpen size={14} /> Add Workspace
+                            <FolderOpen size={14} /> Add Remote Workspace
                         </button>
                     </div>
                 ) : (
@@ -1731,6 +1770,16 @@ export function WorkspacePanel({
                     taskId={scheduledTasksForTaskId}
                     taskName={scheduledTasksTask.displayName || scheduledTasksTask.prompt?.substring(0, 60) || scheduledTasksForTaskId}
                     onClose={() => setScheduledTasksForTaskId(null)}
+                />
+            )}
+
+            {showLocalModal && (
+                <LocalWorkspaceModal
+                    onSelect={(mountPoint) => {
+                        setShowLocalModal(false);
+                        onCreateWorkspace(mountPoint);
+                    }}
+                    onCancel={() => setShowLocalModal(false)}
                 />
             )}
         </div>

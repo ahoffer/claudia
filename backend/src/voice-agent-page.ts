@@ -510,27 +510,23 @@ export function getVoiceAgentPageHtml(wsUrl: string, token: string, deepgramApiK
 
         async function loadVoices() {
             const contentEl = document.getElementById('settingsContent');
+            if (!contentEl) return;
+
             const currentVoiceId = localStorage.getItem('elevenLabsVoiceId');
             const currentVoiceName = localStorage.getItem('elevenLabsVoiceName');
 
             try {
-                // Show current voice
                 const currentVoiceEl = document.getElementById('currentVoiceDisplay');
-                if (currentVoiceName) {
+                if (currentVoiceEl) {
                     currentVoiceEl.innerHTML = \`
                         <div class="current-voice-label">Current Voice</div>
-                        <div class="current-voice-name">\${currentVoiceName}</div>
-                    \`;
-                } else {
-                    currentVoiceEl.innerHTML = \`
-                        <div class="current-voice-label">Current Voice</div>
-                        <div class="current-voice-name">Default</div>
+                        <div class="current-voice-name">\${currentVoiceName || 'Default'}</div>
                     \`;
                 }
 
                 const response = await fetch('/api/elevenlabs/voices');
                 if (!response.ok) {
-                    throw new Error(\`Failed to fetch voices: \${response.statusText}\`);
+                    throw new Error('ElevenLabs API key not configured. Set ELEVENLABS_API_KEY to enable voice selection.');
                 }
 
                 const voices = await response.json();
@@ -540,21 +536,16 @@ export function getVoiceAgentPageHtml(wsUrl: string, token: string, deepgramApiK
                     <ul class="voice-list" id="voiceList"></ul>
                 \`;
 
-                // Re-show current voice after content update
                 const currentVoiceDisplay = document.getElementById('currentVoiceDisplay');
-                if (currentVoiceName) {
+                if (currentVoiceDisplay) {
                     currentVoiceDisplay.innerHTML = \`
                         <div class="current-voice-label">Current Voice</div>
-                        <div class="current-voice-name">\${currentVoiceName}</div>
-                    \`;
-                } else {
-                    currentVoiceDisplay.innerHTML = \`
-                        <div class="current-voice-label">Current Voice</div>
-                        <div class="current-voice-name">Default</div>
+                        <div class="current-voice-name">\${currentVoiceName || 'Default'}</div>
                     \`;
                 }
 
                 const voiceList = document.getElementById('voiceList');
+                if (!voiceList) return;
                 voices.forEach(voice => {
                     const li = document.createElement('li');
                     li.className = 'voice-item';
@@ -581,9 +572,11 @@ export function getVoiceAgentPageHtml(wsUrl: string, token: string, deepgramApiK
                 });
             } catch (error) {
                 console.error('Failed to load voices:', error);
-                contentEl.innerHTML = \`
-                    <div class="error">Failed to load voices: \${error.message}</div>
-                \`;
+                if (contentEl) {
+                    contentEl.innerHTML = \`
+                        <div class="error">\${error.message}</div>
+                    \`;
+                }
             }
         }
 

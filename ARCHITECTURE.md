@@ -703,6 +703,17 @@ The remote setup script provisions a Linux host for Claudia with SSH-based file 
 
 The SSHFS mount preserves Mac workspace paths so Claudia directory paths are identical on both machines.
 
+### Built-in SSHFS Workspace Mounting
+
+Claudia can mount directories from a client machine on demand via the "Add Local Workspace" UI. This requires SSH key auth from the server to the client.
+
+- **Backend**: `sshfs-manager.ts` creates ephemeral SSHFS mounts under `~/.claudia/mounts/<hostname>/`
+- **API**: `POST /api/sshfs/mount` (create), `GET /api/sshfs/mounts` (list), `DELETE /api/sshfs/mount/:id` (remove)
+- **Lifecycle**: mounts are tracked in memory and unmounted on server shutdown
+- **Mount options**: `reconnect`, `ServerAliveInterval=15`, `ServerAliveCountMax=3`
+
+The "Add Remote Workspace" option browses the server's filesystem directly. "Add Local Workspace" creates an SSHFS mount first, then adds the mount point as a workspace.
+
 ### VM Setup (`setup-claudia-vm.sh`)
 
 Alternative to SSH remote: runs Claudia in a Colima VM on macOS.

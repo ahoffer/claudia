@@ -6,6 +6,7 @@ import { Task, Workspace } from '@claudia/shared';
 import { Copy, Check, Play, BookOpen, ArrowDown } from 'lucide-react';
 import { TaskInputBar } from './TaskInputBar';
 import { TERMINAL_SCROLL_TO_BOTTOM } from '../constants/events';
+import { copyText } from '../utils/browserCapabilities';
 import { useEffectiveTheme } from '../hooks/useTheme';
 import { DARK_TERMINAL_THEME, LIGHT_TERMINAL_THEME } from '../types/theme';
 import '@xterm/xterm/css/xterm.css';
@@ -108,7 +109,19 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
 
     const copyToClipboard = async () => {
         try {
-            await navigator.clipboard.writeText(task.prompt);
+            const term = xtermRef.current;
+            let text = '';
+            if (term) {
+                const buf = term.buffer.active;
+                const lines: string[] = [];
+                for (let i = 0; i <= buf.baseY + buf.cursorY; i++) {
+                    const line = buf.getLine(i);
+                    if (line) lines.push(line.translateToString(true));
+                }
+                text = lines.join('\n').trimEnd();
+            }
+            if (!text) text = task.prompt;
+            await copyText(text);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch (err) {
@@ -459,7 +472,7 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
                 <button
                     className={`copy-button ${copied ? 'copied' : ''}`}
                     onClick={copyToClipboard}
-                    title="Copy prompt to clipboard"
+                    title="Copy conversation to clipboard"
                 >
                     {copied ? <Check size={16} /> : <Copy size={16} />}
                 </button>

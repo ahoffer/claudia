@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { X, Settings, Volume2, Server, ChevronDown, ChevronRight, Plus, Trash2, Shield, FileText, Bot, MousePointer, CheckCircle, AlertCircle, Loader2, Key, Code, Eye, Terminal, Brain, Zap, Bell, Palette } from 'lucide-react';
+import { X, Settings, Server, ChevronDown, ChevronRight, Plus, Trash2, Shield, FileText, Bot, MousePointer, CheckCircle, AlertCircle, Loader2, Key, Code, Eye, Terminal, Brain, Zap, Bell, Palette, Mic } from 'lucide-react';
 import { VoiceSettingsContent } from './VoiceSettingsContent';
 import { getApiBaseUrl } from '../config/api-config';
 import { hasBrowserNotifications, getNotificationPermission, requestNotificationPermission, sendBrowserNotification } from '../utils/browserCapabilities';
@@ -79,7 +79,7 @@ export function SettingsMenu({ isOpen, onClose, initialPanel }: SettingsMenuProp
     const { showWarning } = useNotification();
     const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>({
         appearance: false,
-        sound: false,
+        dictate: false,
         notifications: false,
         behavior: false,
         backend: false,
@@ -1261,10 +1261,10 @@ export function SettingsMenu({ isOpen, onClose, initialPanel }: SettingsMenuProp
                     </CollapsiblePanel>
 
                     <CollapsiblePanel
-                        title="Sound"
-                        icon={<Volume2 size={18} />}
-                        isExpanded={expandedPanels.sound}
-                        onToggle={() => togglePanel('sound')}
+                        title="Dictate"
+                        icon={<Mic size={18} />}
+                        isExpanded={expandedPanels.dictate}
+                        onToggle={() => togglePanel('dictate')}
                     >
                         <VoiceSettingsContent />
                     </CollapsiblePanel>

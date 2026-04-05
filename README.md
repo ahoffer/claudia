@@ -95,7 +95,7 @@ On first launch, the Settings panel will open automatically:
 
 ### Getting Started
 
-1. **Add a Workspace** — Click the **+** button in the top right corner and enter the path to your project directory
+1. **Add a Workspace** — Click the **+** button and choose **Add Remote Workspace** to browse the server's filesystem, or **Add Local Workspace** to mount a folder from your client machine via SSHFS (requires SSH key auth from server to client)
 2. **Create a Task** — Use the text box at the bottom of the workspace panel to enter your prompt and start a new task
 3. **Monitor Progress** — Watch the real-time terminal output as Claude works
 4. **Interact** — Send follow-up messages or interrupt tasks as needed

@@ -82,10 +82,10 @@ export function GlobalVoiceToggle() {
             <button
                 className="global-voice-toggle unsupported"
                 disabled
-                title="Voice input not supported in this browser"
+                title="Dictation not available — requires HTTPS or localhost for microphone access"
             >
                 <MicOff size={18} />
-                <span>Voice</span>
+                <span>Dictate</span>
             </button>
         );
     }
@@ -100,7 +100,7 @@ export function GlobalVoiceToggle() {
                     title={setupTitle}
                 >
                     <MicOff size={18} />
-                    <span>Voice</span>
+                    <span>Dictate</span>
                 </button>
                 {sttProvider === 'deepgram' && (
                     <DeepgramApiKeyModal
@@ -122,14 +122,14 @@ export function GlobalVoiceToggle() {
         <button
             className={`global-voice-toggle ${globalVoiceEnabled ? 'active' : ''}`}
             onClick={handleToggle}
-            title={globalVoiceEnabled ? `Voice Mode ON - Speaking to: ${targetDescription}` : 'Enable Voice Mode'}
+            title={globalVoiceEnabled ? `Dictation ON — speaking to: ${targetDescription}` : 'Enable dictation — speak to type into input fields'}
         >
             {globalVoiceEnabled ? (
                 <Mic size={18} className="mic-active" />
             ) : (
                 <Mic size={18} />
             )}
-            <span>Voice</span>
+            <span>Dictate</span>
             {globalVoiceEnabled && (
                 <span className="voice-target-indicator">
                     {targetDescription}

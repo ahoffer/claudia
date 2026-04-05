@@ -39,6 +39,27 @@ export function hasClipboardAPI(): boolean {
 }
 
 /**
+ * Copy text to clipboard with fallback for non-secure contexts (plain HTTP).
+ * navigator.clipboard requires HTTPS or localhost; this falls back to execCommand.
+ */
+export async function copyText(text: string): Promise<void> {
+    if (hasClipboardAPI()) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return;
+        } catch { /* fall through to legacy method */ }
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+}
+
+/**
  * Get user-friendly error message for unsupported features
  */
 export function getUnsupportedFeatureMessage(feature: string): string {

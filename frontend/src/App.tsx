@@ -14,7 +14,7 @@ import { ActivityPanel } from './components/ActivityPanel';
 import { useTheme } from './hooks/useTheme';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useTaskStore } from './stores/taskStore';
-import { Terminal, Settings, MessageCircle, X, RefreshCw, RotateCcw, WifiOff, Activity, AlertTriangle, Smartphone, ArrowLeft, Mic, Bell, BellOff } from 'lucide-react';
+import { Terminal, Settings, MessageCircle, X, RefreshCw, RotateCcw, WifiOff, Activity, AlertTriangle, Smartphone, ArrowLeft, AudioLines, Bell, BellOff } from 'lucide-react';
 import { getApiBaseUrl } from './config/api-config';
 import { isSoundEnabled, setSoundEnabled } from './utils/browserCapabilities';
 import { TERMINAL_SCROLL_TO_BOTTOM, TASK_INPUT_FOCUS } from './constants/events';
@@ -494,10 +494,10 @@ function App() {
                         <button
                             className="chat-toggle-button voice-agent-button"
                             onClick={handleOpenVoiceAgent}
-                            title="Open Voice Agent"
+                            title="Talk to Claudia — opens voice conversation in a new tab"
                         >
-                            <Mic size={18} />
-                            <span className="btn-label">Voice Agent</span>
+                            <AudioLines size={18} />
+                            <span className="btn-label">Talk to Claudia</span>
                         </button>
                     )}
                     <GlobalVoiceToggle />

@@ -13,6 +13,7 @@ import multer from 'multer';
 import { TaskSpawner } from './task-spawner.js';
 import { WorkspaceStore } from './workspace-store.js';
 import { ConfigStore } from './config-store.js';
+import { unmountAll as unmountAllSshfs } from './sshfs-manager.js';
 import { SupervisorChat } from './supervisor-chat.js';
 import { getConversationHistory, getWorkspaceSessions } from './conversation-parser.js';
 import { setUserId } from './usage-reporter.js';
@@ -349,9 +350,15 @@ export async function createApp(basePath?: string) {
         origin: (origin, callback) => {
             // Allow requests with no origin (curl, server-to-server, same-origin)
             if (!origin) return callback(null, true);
-            // Allow ngrok/localtunnel origins (tunnel access uses token auth)
+            // Allow same-port requests from any hostname (the browser is accessing
+            // the backend directly — the origin host is just the server's own address)
             try {
-                if (/\.(ngrok-free\.app|ngrok\.io|loca\.lt)$/.test(new URL(origin).hostname)) {
+                const url = new URL(origin);
+                if (url.port === String(PORTS.BACKEND) || (!url.port && url.protocol === 'http:' && PORTS.BACKEND === 80)) {
+                    return callback(null, true);
+                }
+                // Allow ngrok/localtunnel origins (tunnel access uses token auth)
+                if (/\.(ngrok-free\.app|ngrok\.io|loca\.lt)$/.test(url.hostname)) {
                     return callback(null, true);
                 }
             } catch {
@@ -2118,6 +2125,65 @@ export async function createApp(basePath?: string) {
             const message = error instanceof Error ? error.message : String(error);
             res.status(500).json({ success: false, error: message });
         }
+    });
+
+    // List directories at a given path (web-based folder browser)
+    app.get('/api/list-directory', async (req, res) => {
+        try {
+            const dirPath = (req.query.path as string) || os.homedir();
+            const resolved = resolve(dirPath);
+
+            const entries = await readdir(resolved, { withFileTypes: true });
+            const dirs = entries
+                .filter((e: { isDirectory(): boolean }) => e.isDirectory())
+                .map((e: { name: string }) => e.name)
+                .sort((a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+            res.json({
+                path: resolved,
+                parent: dirname(resolved) !== resolved ? dirname(resolved) : null,
+                directories: dirs,
+            });
+        } catch (err: any) {
+            if (err.code === 'ENOENT') {
+                res.status(404).json({ error: 'Directory not found' });
+            } else if (err.code === 'EACCES') {
+                res.status(403).json({ error: 'Permission denied' });
+            } else {
+                res.status(500).json({ error: err.message });
+            }
+        }
+    });
+
+    // SSHFS mount management
+    app.post('/api/sshfs/mount', async (req, res) => {
+        try {
+            const { hostname, remotePath } = req.body as { hostname?: string; remotePath?: string };
+            if (!hostname || !remotePath) {
+                res.status(400).json({ error: 'hostname and remotePath are required' });
+                return;
+            }
+            if (!remotePath.startsWith('/')) {
+                res.status(400).json({ error: 'remotePath must be absolute' });
+                return;
+            }
+            const { createMount } = await import('./sshfs-manager.js');
+            const mount = await createMount(hostname, remotePath);
+            res.json(mount);
+        } catch (err: any) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.get('/api/sshfs/mounts', async (_req, res) => {
+        const { listMounts } = await import('./sshfs-manager.js');
+        res.json(listMounts());
+    });
+
+    app.delete('/api/sshfs/mount/:id', async (req, res) => {
+        const { removeMount } = await import('./sshfs-manager.js');
+        const removed = removeMount(req.params.id);
+        res.json({ removed });
     });
 
     // Plugin API routes
@@ -5039,6 +5105,9 @@ Guidelines:
 
         // Give clients time to receive the message, then clean up
         setTimeout(() => {
+            // Unmount SSHFS mounts
+            try { unmountAllSshfs(); } catch { /* best effort */ }
+
             // Stop tunnel if active
             tunnelManager.stop().catch(() => {});
 
