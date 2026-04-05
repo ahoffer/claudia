@@ -30,7 +30,7 @@ npm run build        # compile backend and frontend
 
 ## Step 4: Connect from a browser
 
-Open **https://your-server-ip:4001** (or **https://your-server-ip:5173** in dev mode) in a browser on any machine that can reach the server. Accept the self-signed certificate warning on first visit.
+Open **https://your-server-ip:4001** in a browser on any machine that can reach the server. Accept the self-signed certificate warning on first visit.
 
 HTTPS is built in — no reverse proxy is needed for basic setups. To use a real certificate, replace the files in `~/.claudia/certs/`. For internet-facing deployments, you can still put the server behind a reverse proxy (Caddy, nginx) if preferred.
 

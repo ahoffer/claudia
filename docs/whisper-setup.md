@@ -50,7 +50,7 @@ sudo systemctl enable --now whisper
 
 ## Configure Claudia
 
-Settings → Sound → Whisper → Server URL: `http://localhost:8080`
+Settings → Dictate → Whisper → Server URL: `http://localhost:8080`
 
 ## Notes
 
