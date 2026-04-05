@@ -322,17 +322,32 @@ export function TerminalView({ task, wsRef, workspace, isMobile }: TerminalViewP
                     console.error('[TerminalView] Initial fit failed:', e);
                 }
 
-                // End init phase — subsequent resizes (window resize, etc.) will
-                // be forwarded to the backend normally.
-                initPhase = false;
-
-                // Send ONE definitive resize to the backend with the correct dimensions
+                // Send ONE definitive resize to the backend with the correct dimensions.
+                // Guard against bogus fit results when the container isn't laid out yet.
                 const { cols, rows } = term;
-                if (wsRef.current?.readyState === WebSocket.OPEN) {
-                    wsRef.current.send(JSON.stringify({
-                        type: 'task:resize',
-                        payload: { taskId: task.id, cols, rows }
-                    }));
+                if (cols < 20 || rows < 5) {
+                    console.warn(`[TerminalView] Fit returned ${cols}x${rows} — container not ready, retrying`);
+                    // Keep initPhase=true so onResize doesn't fire during retry
+                    setTimeout(() => {
+                        try { fitAddon.fit(); } catch (_e) { /* ignore */ }
+                        const c = term.cols, r = term.rows;
+                        if (c >= 20 && r >= 5 && wsRef.current?.readyState === WebSocket.OPEN) {
+                            wsRef.current.send(JSON.stringify({
+                                type: 'task:resize',
+                                payload: { taskId: task.id, cols: c, rows: r }
+                            }));
+                        }
+                        initPhase = false;
+                    }, 200);
+                } else {
+                    // End init phase — subsequent resizes will be forwarded normally.
+                    initPhase = false;
+                    if (wsRef.current?.readyState === WebSocket.OPEN) {
+                        wsRef.current.send(JSON.stringify({
+                            type: 'task:resize',
+                            payload: { taskId: task.id, cols, rows }
+                        }));
+                    }
                 }
 
                 // NOW request history — terminal is properly sized, so history

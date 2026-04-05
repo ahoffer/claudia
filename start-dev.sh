@@ -6,6 +6,18 @@
 set -e
 
 # ============================================
+# EXTRA SANs — pass additional Subject Alternative Names for the TLS cert
+# Usage: ./start-dev.sh --san DNS:myhost --san IP:10.0.0.5
+# ============================================
+EXTRA_SANS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --san) EXTRA_SANS+=("$2"); shift 2 ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+# ============================================
 # PORT CONFIGURATION - Single source of truth
 # ============================================
 BACKEND_PORT=4001
@@ -62,19 +74,29 @@ ensure_certs() {
     local key="$cert_dir/server.key"
     local cert="$cert_dir/server.crt"
 
-    if [ -f "$key" ] && [ -f "$cert" ]; then
+    if [ -f "$key" ] && [ -f "$cert" ] && [ ${#EXTRA_SANS[@]} -eq 0 ]; then
         echo "🔒 TLS certificate found at $cert_dir"
     else
+        [ ${#EXTRA_SANS[@]} -gt 0 ] && echo "🔒 Regenerating TLS certificate with extra SANs..." || true
         echo "🔒 Generating self-signed TLS certificate..."
         mkdir -p "$cert_dir"
 
-        # Build SAN list: localhost + loopback + LAN IP
+        # Build SAN list: hostname + localhost + loopback + LAN IP
         local san="DNS:localhost,IP:127.0.0.1,IP:::1"
+        local hname
+        hname=$(hostname 2>/dev/null)
+        if [ -n "$hname" ]; then
+            san="DNS:$hname,$san"
+        fi
         local host_ip
         host_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
         if [ -n "$host_ip" ]; then
             san="$san,IP:$host_ip"
         fi
+        # Append any --san arguments from the command line
+        for extra in "${EXTRA_SANS[@]}"; do
+            san="$san,$extra"
+        done
 
         openssl req -x509 -newkey rsa:2048 -nodes \
             -keyout "$key" -out "$cert" \
