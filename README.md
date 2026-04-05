@@ -216,7 +216,7 @@ Each MCP server instance receives these environment variables from the task spaw
 
 ## Development
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for project structure, file inventory, API surface, and deployment details. See [RELEASE.md](RELEASE.md) for npm publishing and versioning.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for project structure, file inventory, API surface, and deployment details. See [DEVELOPER.md](DEVELOPER.md) for npm publishing and versioning.
 
 ## License
 
