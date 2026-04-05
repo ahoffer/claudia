@@ -7,13 +7,7 @@ The backend uses `tsx watch` and auto-reloads when you change `.ts` files. The f
 ## Testing
 
 ```bash
-# Unit tests
 npm test
-
-# Test CLI (from the backend directory)
-cd backend
-npx tsx test-cli.ts --list-tasks
-npx tsx test-cli.ts -m "your prompt" -w /path/to/workspace
 ```
 
 ## Installing from npm
