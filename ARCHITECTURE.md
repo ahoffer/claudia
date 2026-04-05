@@ -735,37 +735,4 @@ Mode is read from `~/.config/claudia/config` (`MODE=local` or `MODE=remote`).
 
 ## Development
 
-### Auto-Reload
-- **Backend:** `tsx watch` monitors `src/`, reloads in 1-2 seconds
-- **Frontend:** Vite HMR provides instant updates
-
-### Ports
-- Backend: `https://localhost:4001`
-- Frontend: `https://localhost:5173`
-
-### Starting the Project
-
-```bash
-./start.sh
-```
-
-Or use npm directly:
-```bash
-npm run dev
-```
-
-### Testing
-```bash
-# Unit tests
-npm run test
-
-# Test CLI
-cd backend
-npx tsx test-cli.ts --list-tasks
-npx tsx test-cli.ts -m "your prompt" -w /path/to/workspace
-```
-
-### Multi-Instance
-Multiple Claude Code instances can work on this project simultaneously without conflicts. The backend auto-reloads on changes.
-
----
+See [DEVELOPER.md](DEVELOPER.md) for dev server setup, testing, and releasing.

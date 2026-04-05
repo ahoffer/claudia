@@ -1,4 +1,29 @@
-# Releasing Claudia
+# Developer Guide
+
+## Starting the Dev Server
+
+```bash
+./start.sh
+```
+
+Or use npm directly:
+```bash
+npm run dev
+```
+
+The backend uses `tsx watch` and auto-reloads on file changes. The frontend uses Vite HMR.
+
+## Testing
+
+```bash
+# Unit tests
+npm test
+
+# Test CLI (from the backend directory)
+cd backend
+npx tsx test-cli.ts --list-tasks
+npx tsx test-cli.ts -m "your prompt" -w /path/to/workspace
+```
 
 ## Installing from npm
 
@@ -7,11 +32,9 @@ npm install -g @ahoffer/claudia
 claudia
 ```
 
-## Versioning
+## Releasing
 
 Versioning is controlled by `version.txt` in the project root. All package versions are synced from it.
-
-## Publishing a Release
 
 ```bash
 npm run release

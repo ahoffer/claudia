@@ -37,12 +37,6 @@ HTTPS is built in — no reverse proxy is needed for basic setups. To use a real
 
 Click **+** in the sidebar and choose **Add Remote Workspace** to browse the server's filesystem, or **Add Local Workspace** to mount a folder from your client machine via SSHFS. Then type a prompt to create your first task.
 
-## Running tests
-
-```bash
-npm test
-```
-
 ## Editing files
 
 Claudia manages Claude Code sessions on the server. To edit files yourself alongside Claude, use **VS Code Remote SSH** or **JetBrains Gateway** to connect directly to the server — no extra setup needed.
