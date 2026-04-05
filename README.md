@@ -12,7 +12,7 @@ A multi-instance Claude Code orchestrator — a web UI that lets you run, monito
 - **AI Supervisor Chat** - Conversational AI interface with tool-calling for task management
 - **Claudia MCP Server** - Let Claude Code agents spawn and coordinate sibling tasks via Model Context Protocol
 - **Workspace Organization** - Group tasks by project directories with custom system prompts
-- **Voice Input** - Deepgram-powered speech-to-text with auto-send on silence
+- **Voice Input** - Speech-to-text via Browser Web Speech API (default), Whisper (local/private), or Deepgram (streaming/accurate)
 - **Git Integration** - Track changes, view diffs, and revert task modifications
 - **Task Persistence** - Tasks survive server restarts with automatic reconnection
 - **Task Archival** - Archive completed tasks with lazy-loaded history
@@ -37,20 +37,9 @@ curl -fsSL https://claude.ai/install.sh | bash
 
 ## Step 2: Install Claudia
 
-**Install via npm:**
 ```bash
-npm install -g @ahoffer/claudia
-```
-
-<details>
-<summary>Manual installation (from source)</summary>
-
-```bash
-# Clone the repository
 git clone https://github.com/ahoffer/claudia.git
 cd claudia
-
-# Install dependencies
 npm install
 
 # Node.js v25+ only: upgrade node-pty for compatibility
@@ -60,35 +49,29 @@ npm install node-pty@1.2.0-beta.11  # only if v25+
 # Build the shared types package (required before first run)
 npm run build -w shared
 ```
-</details>
 
 ## Step 3: Running the App
-
-### Quick Start
-
-```bash
-claudia
-```
-
-Or if running from a cloned repo:
 
 ```bash
 ./start.sh
 ```
 
 This will:
-1. Kill any existing processes on required ports
-2. Start the backend server (port 4001)
-3. Start the frontend dev server (port 5173)
+1. Generate a self-signed TLS certificate (first run only, stored in `~/.claudia/certs/`)
+2. Check that required ports are free
+3. Start the backend server (HTTPS on port 4001)
+4. Start the frontend dev server (HTTPS on port 5173)
 
-Access the UI at **http://localhost:5173**
+Access the UI at **https://localhost:5173** (or **https://localhost:4001** if Vite is not running).
+Your browser will warn about the self-signed certificate on first visit — accept the exception to continue.
+To use a real certificate, replace `~/.claudia/certs/server.key` and `server.crt`.
 
 ### Configure Claudia Settings
 
 On first launch, the Settings panel will open automatically:
 
-1. Choose your **API provider** (Anthropic, custom endpoint, SAP AI Core, or Hyperspace proxy)
-2. Enter the required credentials for your chosen provider
+1. Choose your **API backend** (Default Claude Code, Custom Anthropic API, SAP AI Core, or Hyperspace proxy)
+2. Enter any required credentials for your chosen backend
 3. Select a model
 
 ## Usage
@@ -232,22 +215,12 @@ Each MCP server instance receives these environment variables from the task spaw
 |----------|---------|
 | `CLAUDIA_WORKSPACE_ID` | Scopes the MCP tools to the current workspace |
 | `CLAUDIA_TASK_ID` | The task's own ID (used for self-rename) |
-| `CLAUDIA_BACKEND_URL` | Backend API URL (default: `http://localhost:4001`) |
+| `CLAUDIA_BACKEND_URL` | Backend API URL (default: `https://localhost:4001`) |
 | `CLAUDIA_MCP_DEBUG` | Enable debug logging to stderr |
 
 ## Development
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for project structure, file inventory, API surface, and deployment details.
-
-### Releasing
-
-Versioning is controlled by `version.txt` in the project root. All package versions are synced from it.
-
-```bash
-npm run release
-```
-
-This syncs versions into all `package.json` files, commits, tags (`vX.Y.Z`), and pushes. The CI pipeline builds, tests, waits for your approval in GitHub Actions, then publishes to npm.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for project structure, file inventory, API surface, and deployment details. See [RELEASE.md](RELEASE.md) for npm publishing and versioning.
 
 ## License
 

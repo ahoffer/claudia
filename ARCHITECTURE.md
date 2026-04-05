@@ -311,7 +311,7 @@ WSMessageType: ~50 types for task lifecycle, workspaces, chat, supervisor,
 
 | File | Purpose |
 |------|---------|
-| `start.sh` | Startup script (Linux/macOS) - checks ports, sets CORS_ORIGINS for proxy setups, runs `npm run dev` |
+| `start.sh` | Startup script (Linux/macOS) - generates TLS cert on first run, checks ports, sets CORS_ORIGINS, runs `npm run dev` over HTTPS |
 | `package.json` | Monorepo root config with workspaces: backend, frontend, shared |
 | `CLAUDE.md` | Project instructions for Claude Code instances |
 | `ARCHITECTURE.md` | This architecture documentation |
@@ -585,26 +585,23 @@ Claudia runs as a server process on Linux. The backend must co-locate with the C
 
 | Environment | Purpose | Access |
 |-------------|---------|--------|
-| Local VM | Development and testing | Direct HTTP to `:4001` or HTTPS via nginx on `:443` |
-| Remote host | Production | HTTPS via nginx on `:443`, bearer token auth |
+| Local VM | Development and testing | Direct HTTPS to `:4001` (built-in self-signed cert) |
+| Remote host | Production | Direct HTTPS to `:4001`, or HTTPS via nginx on `:443` with bearer token auth |
 
 ### Production Topology
 
 ```
 Browser (any device)
-        │ HTTPS :443
+        │ HTTPS :4001
         ▼
 ┌─────────────────────────────────────┐
 │  Remote host / Local VM             │
 │                                     │
-│  nginx :443                         │
-│    TLS: self-signed cert (for now)  │
-│    Auth: bearer token               │
-│      ↓ proxy_pass                   │
-│  Express :4001                      │
+│  Express :4001  (built-in TLS)      │
+│    TLS: self-signed cert            │
 │    serves /dist  (React frontend)   │
 │    /api/*        REST endpoints     │
-│    ws://         WebSocket          │
+│    wss://        WebSocket          │
 │    spawns claude PTY processes      │
 └─────────────────────────────────────┘
 ```
@@ -612,39 +609,23 @@ Browser (any device)
 ### Key Principles
 
 - **Single port, single process** - Express serves the built frontend statically from `/dist`. Clients connect to one origin; no CORS complexity.
-- **nginx handles TLS** - self-signed certs for now (swap in a CA-signed cert later without touching the app). nginx also terminates auth before traffic reaches Express.
+- **Built-in TLS** - `start.sh` auto-generates a self-signed cert at `~/.claudia/certs/` on first run with SANs for localhost and the LAN IP. No reverse proxy required. Swap in a CA-signed cert by replacing `server.key` and `server.crt`.
 - **Bearer token auth** - a shared secret in `config.json`, checked by Express middleware. Simple and sufficient for single-user/team deployments.
-- **Environment parity** - VM and remote host run identically. The only difference is the nginx cert and the DNS/IP used to reach it.
+- **Environment parity** - VM and remote host run identically. The only difference is the cert and the DNS/IP used to reach it.
 - **Co-location requirement** - the Claude Code CLI (`claude`) must be installed on the same machine as the backend. Remote deployments are "bring your own host with claude installed."
 
-### TLS (Self-Signed Certs)
+### TLS Certificate
 
-Generate a cert for the host:
+On first run, `start.sh` generates a self-signed certificate:
 
-```bash
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem \
-  -days 365 -nodes -subj "/CN=<hostname-or-ip>"
-```
+- **Location**: `~/.claudia/certs/server.key` and `server.crt`
+- **Validity**: 365 days, RSA 2048-bit
+- **SANs**: `localhost`, `127.0.0.1`, `::1`, and the machine's LAN IP
+- **Env vars**: `CLAUDIA_TLS_CERT` and `CLAUDIA_TLS_KEY` point to the cert files
 
-nginx config snippet:
+Browsers will warn on self-signed certs; accept the exception once per device. To use a real certificate (for example Let's Encrypt), replace the two files in `~/.claudia/certs/` and restart.
 
-```nginx
-server {
-    listen 443 ssl;
-    ssl_certificate     /etc/claudia/cert.pem;
-    ssl_certificate_key /etc/claudia/key.pem;
-
-    location / {
-        proxy_pass         http://localhost:4001;
-        proxy_http_version 1.1;
-        proxy_set_header   Upgrade $http_upgrade;
-        proxy_set_header   Connection "upgrade";
-        proxy_set_header   Host $host;
-    }
-}
-```
-
-Browsers will warn on self-signed certs; accept the exception once per device. Replace with a CA-signed cert (for example Let's Encrypt) when ready.
+An nginx reverse proxy is optional but still supported for internet-facing deployments where you want nginx to handle TLS termination and auth.
 
 ---
 
@@ -656,8 +637,9 @@ The frontend auto-detects its access method and routes API/WebSocket traffic acc
 
 | Mode | Detection | API URL | WebSocket |
 |------|-----------|---------|-----------|
-| Direct (local dev) | Default | `http://hostname:4001` | `ws://hostname:4001` |
-| Reverse proxy | HTTPS + non-tunnel host | Same origin | `wss://host` |
+| Direct HTTPS | HTTPS + localhost or bare IP | `https://hostname:4001` | `wss://hostname:4001` |
+| Direct HTTP (fallback) | HTTP, no TLS configured | `http://hostname:4001` | `ws://hostname:4001` |
+| Reverse proxy | HTTPS + non-IP hostname, not tunnel | Same origin | `wss://host` |
 | Tunnel (ngrok) | `*.ngrok-free.app` hostname | Same origin | `wss://host?token=<uuid>&mobile=1` |
 
 ### ngrok Tunnel (`backend/src/tunnel-manager.ts`)
@@ -672,10 +654,10 @@ Creates public HTTPS URLs for mobile device access:
 
 ### CORS (`backend/src/server.ts`)
 
-- Default allowed origins: `localhost:4000`, `localhost:4001`, `127.0.0.1:4000`, `127.0.0.1:4001`
+- Default allowed origins: `localhost:4001`, `localhost:5173`, `127.0.0.1:4001`, `127.0.0.1:5173` (both HTTP and HTTPS)
 - Additional origins via `CORS_ORIGINS` environment variable (comma-separated)
 - Tunnel origins (`*.ngrok-free.app`, `*.ngrok.io`, `*.loca.lt`) are automatically whitelisted
-- `start.sh` auto-sets CORS for reverse proxy at `https://<host-ip>:4443`
+- `start.sh` auto-sets CORS for the LAN IP on ports 4001, 5173, and 4443
 
 ### WebSocket Upgrade Routing
 
@@ -758,8 +740,8 @@ Mode is read from `~/.config/claudia/config` (`MODE=local` or `MODE=remote`).
 - **Frontend:** Vite HMR provides instant updates
 
 ### Ports
-- Backend: `http://localhost:4001`
-- Frontend: `http://localhost:5173`
+- Backend: `https://localhost:4001`
+- Frontend: `https://localhost:5173`
 
 ### Starting the Project
 

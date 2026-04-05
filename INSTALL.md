@@ -24,18 +24,18 @@ npm install && npm run build -w shared  # install deps and compile shared types 
 ## Step 3: Start the server
 
 ```bash
-./start.sh  # kills stale processes, then starts the backend (port 4001) and frontend dev server (port 5173)
+./start.sh  # generates TLS cert on first run, then starts backend (:4001) and frontend (:5173) over HTTPS
 ```
 
 ## Step 4: Connect from a browser
 
-Open **http://your-server-ip:5173** in a browser on any machine that can reach the server.
+Open **https://your-server-ip:4001** (or **https://your-server-ip:5173** in dev mode) in a browser on any machine that can reach the server. Accept the self-signed certificate warning on first visit.
 
-If you're connecting over the internet, put the server behind a reverse proxy (Caddy, nginx) with HTTPS. The included `setup-claudia-remote.sh` script automates this for a fresh Ubuntu host.
+HTTPS is built in — no reverse proxy is needed for basic setups. To use a real certificate, replace the files in `~/.claudia/certs/`. For internet-facing deployments, you can still put the server behind a reverse proxy (Caddy, nginx) if preferred.
 
 ## Step 5: Add a workspace
 
-Click **+** in the sidebar and enter the absolute path to a project directory on the server (for example `/home/you/myproject`). Then type a prompt to create your first task.
+Click **+** in the sidebar and choose **Add Remote Workspace** to browse the server's filesystem, or **Add Local Workspace** to mount a folder from your client machine via SSHFS. Then type a prompt to create your first task.
 
 ## Running tests
 

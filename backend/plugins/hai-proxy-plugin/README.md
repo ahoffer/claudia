@@ -31,7 +31,7 @@ npm install -g @hyperspace-ai/hai
 ### Starting the Proxy
 
 ```bash
-curl -X POST http://localhost:4001/plugins/hai-proxy-plugin/start
+curl -k -X POST https://localhost:4001/plugins/hai-proxy-plugin/start
 ```
 
 Returns:
@@ -47,7 +47,7 @@ Returns:
 ### Checking Status
 
 ```bash
-curl http://localhost:4001/plugins/hai-proxy-plugin/status
+curl -k https://localhost:4001/plugins/hai-proxy-plugin/status
 ```
 
 Returns:
@@ -64,7 +64,7 @@ Returns:
 ### Stopping the Proxy
 
 ```bash
-curl -X POST http://localhost:4001/plugins/hai-proxy-plugin/stop
+curl -k -X POST https://localhost:4001/plugins/hai-proxy-plugin/stop
 ```
 
 ### Using the Proxy

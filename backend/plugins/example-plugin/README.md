@@ -14,10 +14,10 @@ After starting Claudia, test the plugin:
 
 ```bash
 # Get hello message
-curl http://localhost:4001/plugins/example-plugin/hello
+curl -k https://localhost:4001/plugins/example-plugin/hello
 
 # Echo endpoint
-curl -X POST http://localhost:4001/plugins/example-plugin/echo \
+curl -k -X POST https://localhost:4001/plugins/example-plugin/echo \
   -H "Content-Type: application/json" \
   -d '{"test": "data"}'
 ```
